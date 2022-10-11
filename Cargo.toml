@@ -2,8 +2,13 @@
 name = "tasklib"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+publish = true
+readme = "README.md"
+authors = ["Kyle L. Davis <aceofspades5757.github@gmail.com>"]
+description = "Library to use Taskwarrior with Rust."
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/AceofSpades5757/tasklib-rs"
+repository = "https://github.com/AceofSpades5757/tasklib-rs"
 
 [dependencies]
 chrono = "0.4.22"
