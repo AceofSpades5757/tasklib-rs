@@ -8,7 +8,7 @@ Add this crate to your `Cargo.toml` file, or use `cargo add tasklib`.
 
 ```toml
 [dependencies]
-tasklib = "0.1.0"
+tasklib = "0.1.1"
 ```
 
 Here is a simple serialization example.
