@@ -38,7 +38,10 @@ let json = r#"
   "urgency": 9.91234
 }"#;
 
-let task: Task = serde_json::from_str(json).expect("valid json representing a task");
+// Getting a Task from your input JSON string.
+let task: Task = serde_json::from_str(json).expect("valid json parsed into a task");
+// Getting a String from your Serialized Task
+let task_str: String = serde_json::to_string(&task).expect("valid json string representing a task");
 
 /* Task represents...
 task = Task {
