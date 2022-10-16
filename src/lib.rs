@@ -25,39 +25,6 @@
 //! let task: Task = serde_json::from_str(json).expect("valid json parsed into a task");
 //! // Getting a String from your Serialized Task
 //! let task_str: String = serde_json::to_string(&task).expect("valid json string representing a task");
-//!
-//! /* Task represents...
-//! task = Task {
-//!     id: 0,
-//!     uuid: "d67fce70-c0b6-43c5-affc-a21e64567d40",
-//!     description: "Task to do.",
-//!     elapsed: Some(
-//!         Duration {
-//!             years: 0,
-//!             months: 0,
-//!             days: 0,
-//!             hours: 2,
-//!             minutes: 0,
-//!             seconds: 0,
-//!         },
-//!     ),
-//!     start: Some(
-//!         2022-01-31T08:30:00Z,
-//!     ),
-//!     end: Some(
-//!         2022-01-31T08:30:00Z,
-//!     ),
-//!     entry: 2022-01-31T08:30:00Z,
-//!     modified: 2022-01-31T08:30:00Z,
-//!     project: "Daily",
-//!     status: Pending,
-//!     tags: [
-//!         "WORK",
-//!     ],
-//!     urgency: 9.91234,
-//!     annotations: [],
-//! }
-//! */
 //! ```
 
 use std::fmt;
