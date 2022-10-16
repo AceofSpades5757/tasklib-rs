@@ -1,3 +1,7 @@
+![Crates.io](https://img.shields.io/crates/l/tasklib?style=plastic)](https://crates.io/crates/tasklib)
+[![Crates.io](https://img.shields.io/crates/v/tasklib?style=plastic)](https://crates.io/crates/tasklib)
+[![Docs](https://img.shields.io/badge/docs-latest-green?style=plastic)](https://docs.rs/tasklib/0.1.1/tasklib/)
+
 # Description
 
 Library to use Taskwarrior with Rust.
