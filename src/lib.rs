@@ -110,12 +110,10 @@ where
         where
             E: de::Error,
         {
-            Ok(
-                Some(DateTime::<Utc>::from_utc(
-                    NaiveDateTime::parse_from_str(v, FORMAT).expect("string turned into datetime"),
-                    Utc,
-                ))
-            )
+            Ok(Some(DateTime::<Utc>::from_utc(
+                NaiveDateTime::parse_from_str(v, FORMAT).expect("string turned into datetime"),
+                Utc,
+            )))
         }
     }
     deserializer.deserialize_any(DateTimeStringVisitor)
@@ -141,9 +139,19 @@ pub struct Task {
     description: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     elapsed: Option<Duration>,
-    #[serde(serialize_with = "tw_dt_to_str_opt", skip_serializing_if = "Option::is_none", deserialize_with = "tw_str_to_dt_opt", default)]
+    #[serde(
+        serialize_with = "tw_dt_to_str_opt",
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "tw_str_to_dt_opt",
+        default
+    )]
     start: Option<DateTime<Utc>>,
-    #[serde(serialize_with = "tw_dt_to_str_opt", skip_serializing_if = "Option::is_none", deserialize_with = "tw_str_to_dt_opt", default)]
+    #[serde(
+        serialize_with = "tw_dt_to_str_opt",
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "tw_str_to_dt_opt",
+        default
+    )]
     end: Option<DateTime<Utc>>,
     #[serde(serialize_with = "tw_dt_to_str", deserialize_with = "tw_str_to_dt")]
     entry: DateTime<Utc>,
@@ -424,28 +432,32 @@ mod tests {
             Duration {
                 days: 3,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "P1000D",
             Duration {
                 days: 1000,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "PT10M",
             Duration {
                 minutes: 10,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "P10M",
             Duration {
                 months: 10,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "P2M3D",
@@ -453,14 +465,16 @@ mod tests {
                 months: 2,
                 days: 3,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "P1Y",
             Duration {
                 years: 1,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "P1Y3D",
@@ -468,21 +482,24 @@ mod tests {
                 years: 1,
                 days: 3,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "PT50S",
             Duration {
                 seconds: 50,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "PT40M",
             Duration {
                 minutes: 40,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "PT40M50S",
@@ -490,7 +507,8 @@ mod tests {
                 minutes: 40,
                 seconds: 50,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "PT12H40M50S",
@@ -499,7 +517,8 @@ mod tests {
                 minutes: 40,
                 seconds: 50,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
         assert_eq!(
             "P1Y2M3DT12H40M50S",
@@ -511,7 +530,8 @@ mod tests {
                 minutes: 40,
                 seconds: 50,
                 ..Default::default()
-            }.to_string()
+            }
+            .to_string()
         );
     }
 }
