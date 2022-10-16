@@ -21,7 +21,10 @@
 //!   "urgency": 9.91234
 //! }"#;
 //!
-//! let task: Task = serde_json::from_str(json).expect("valid json representing a task");
+//! // Getting a Task from your input JSON string.
+//! let task: Task = serde_json::from_str(json).expect("valid json parsed into a task");
+//! // Getting a String from your Serialized Task
+//! let task_str: String = serde_json::to_string(&task).expect("valid json string representing a task");
 //!
 //! /* Task represents...
 //! task = Task {
@@ -165,6 +168,49 @@ pub struct Task {
     urgency: f64,
     #[serde(default)]
     annotations: Vec<Annotation>,
+}
+
+/// Getters (Immutable)
+impl Task {
+    pub fn id(&self) -> &usize {
+        &self.id
+    }
+    pub fn uuid(&self) -> &str {
+        &self.uuid
+    }
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+    pub fn elapsed(&self) -> Option<&Duration> {
+        self.elapsed.as_ref()
+    }
+    pub fn start(&self) -> Option<&DateTime<Utc>> {
+        self.start.as_ref()
+    }
+    pub fn end(&self) -> Option<&DateTime<Utc>> {
+        self.end.as_ref()
+    }
+    pub fn entry(&self) -> &DateTime<Utc> {
+        &self.entry
+    }
+    pub fn modified(&self) -> &DateTime<Utc> {
+        &self.modified
+    }
+    pub fn project(&self) -> &str {
+        &self.project
+    }
+    pub fn status(&self) -> &Status {
+        &self.status
+    }
+    pub fn tags(&self) -> &[String] {
+        &self.tags
+    }
+    pub fn urgency(&self) -> &f64 {
+        &self.urgency
+    }
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
