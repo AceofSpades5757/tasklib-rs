@@ -35,6 +35,8 @@ use regex::Regex;
 use serde::ser::SerializeStruct;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+use udas::Uda;
+
 const FORMAT: &str = "%Y%m%dT%H%M%SZ";
 
 fn tw_str_to_dt<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
@@ -133,6 +135,8 @@ pub struct Task {
     urgency: f64,
     #[serde(default)]
     annotations: Vec<Annotation>,
+    #[serde(default)]
+    udas: Vec<Uda>,
 }
 
 /// Getters (Immutable)
@@ -420,6 +424,127 @@ impl<'de> Deserialize<'de> for Duration {
     {
         let s = String::deserialize(deserializer)?;
         FromStr::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+mod udas {
+
+    use super::Duration;
+    use super::tw_dt_to_str_opt;
+    use super::tw_str_to_dt_opt;
+    use chrono::{self, offset::Utc, DateTime};
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    enum Uda {
+        String{
+            label: String,
+            default: String,
+            values: Vec<String>,
+            coefficient: Option<f32>,
+        },
+        Numeric{
+            label: String,
+            default: f64,
+            coefficient: Option<f32>,
+        },
+        Date{
+            label: String,
+            #[serde(
+                serialize_with = "tw_dt_to_str_opt",
+                skip_serializing_if = "Option::is_none",
+                deserialize_with = "tw_str_to_dt_opt",
+                default
+            )]
+            default: Option<DateTime<Utc>>,
+            coefficient: Option<f32>,
+        },
+        Duration{
+            label: String,
+            default: Option<Duration>,
+            coefficient: Option<f32>,
+        },
+    }
+
+    impl Uda {
+        /// Get the type of the UDA as a string
+        fn r#type(&self) -> String {
+            match self {
+                Uda::String{..} => "string".to_string(),
+                Uda::Numeric{..} => "numeric".to_string(),
+                Uda::Date{..} => "date".to_string(),
+                Uda::Duration{..} => "duration".to_string(),
+            }
+        }
+    }
+
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+
+    #[derive(Debug, Clone)]
+    enum Type {
+        /// May be provided a list of acceptable values, using the `uda.my_uda.values` key, which
+        /// is set to a string of comma-separated values.
+        ///
+        /// e.g. `task config uda.size.values large,medium,small`
+        String,
+        /// Float
+        Numeric,
+        /// I'm using chrono's DateTime struct
+        Date,
+        Duration,
+    }
+
+    impl Type {
+        fn to_string(&self) -> String {
+            self.to_str().to_string()
+        }
+        fn to_str(&self) -> &str {
+            match self {
+                Type::String => "string",
+                Type::Numeric => "numeric",
+                Type::Date => "date",
+                Type::Duration => "duration",
+            }
+        }
+        fn from_str(s: &str) -> Result<Type, String> {
+            match s {
+                "string" => Ok(Type::String),
+                "numeric" => Ok(Type::Numeric),
+                "date" => Ok(Type::Date),
+                "duration" => Ok(Type::Duration),
+                _ => Err(format!("invalid type: {}", s)),
+            }
+        }
+        fn from_string(s: String) -> Result<Type, String> {
+            Type::from_str(&s)
+        }
+    }
+
+    impl Serialize for Type {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            serializer.serialize_str(&self.to_string())
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Type {
+        fn deserialize<D>(deserializer: D) -> Result<Type, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let s = String::deserialize(deserializer)?;
+            Type::from_string(s).map_err(de::Error::custom)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn test() {
+            todo!()
+        }
     }
 }
 
@@ -782,6 +907,30 @@ mod tests {
                 ..Default::default()
             }
         );
+    }
+    #[test]
+    fn test_udas() {
+        // Uses elapsed, a duration type UDA
+        let task_str = r#"
+        {
+            "id": 0,
+            "description": "Task to do.",
+            "end": "20220131T083000Z",
+            "entry": "20220131T083000Z",
+            "modified": "20220131T083000Z",
+            "elapsed": "PT2H",
+            "project": "Daily",
+            "start": "20220131T083000Z",
+            "status": "pending",
+            "uuid": "d67fce70-c0b6-43c5-affc-a21e64567d40",
+            "tags": [
+                "WORK"
+            ],
+            "urgency": 9.91234
+        }
+        "#;
+        let task = task_str.parse::<Task>().unwrap();
+        assert_eq!(task.udas.get("elapsed").unwrap(), Duration::from("PT2H"));
     }
 }
 
