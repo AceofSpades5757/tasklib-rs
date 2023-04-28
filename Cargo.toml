@@ -11,7 +11,7 @@ homepage = "https://github.com/AceofSpades5757/tasklib-rs"
 repository = "https://github.com/AceofSpades5757/tasklib-rs"
 
 [dependencies]
-chrono = "0.4.22"
-regex = "1.6.0"
-serde = { version = "1.0.145", features = ["derive"] }
-serde_json = "1.0.86"
+chrono = "0.4.24"
+regex = "1.8.1"
+serde = { version = "1.0.160", features = ["derive"] }
+serde_json = "1.0.96"
