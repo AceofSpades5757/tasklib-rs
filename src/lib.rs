@@ -29,8 +29,9 @@
 
 use std::fmt;
 use std::str::FromStr;
+use std::time;
 
-use chrono::{offset::Utc, DateTime, NaiveDateTime};
+use chrono::{self, offset::Utc, DateTime, NaiveDateTime};
 use regex::Regex;
 use serde::ser::SerializeStruct;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -267,6 +268,34 @@ impl Duration {
     }
 }
 
+impl Duration {
+    /// Shift the values around to their reasonable maxes.
+    ///
+    /// e.g. seconds should never be more then 59
+    fn smooth(&mut self) {
+        if self.seconds > 59 {
+            self.minutes += self.seconds / 60;
+            self.seconds = self.seconds % 60;
+        }
+        if self.minutes > 59 {
+            self.hours += self.minutes / 60;
+            self.minutes = self.minutes % 60;
+        }
+        if self.hours > 23 {
+            self.days += self.hours / 24;
+            self.hours = self.hours % 24;
+        }
+        if self.days > 30 {
+            self.months += self.days / 30;
+            self.days = self.days % 30;
+        }
+        if self.months > 11 {
+            self.years += self.months / 12;
+            self.months = self.months % 12;
+        }
+    }
+}
+
 impl From<String> for Duration {
     fn from(s: String) -> Self {
         Duration::from_str(&s).expect("string turned into duration")
@@ -276,6 +305,28 @@ impl From<String> for Duration {
 impl From<&str> for Duration {
     fn from(s: &str) -> Self {
         Duration::from_str(s).expect("string turned into duration")
+    }
+}
+
+impl From<time::Duration> for Duration {
+    fn from(duration: time::Duration) -> Self {
+        let mut dur = Duration {
+            seconds: duration.as_secs() as u32,
+            ..Default::default()
+        };
+        dur.smooth();
+        dur
+    }
+}
+
+impl From<chrono::Duration> for Duration {
+    fn from(duration: chrono::Duration) -> Self {
+        let mut dur = Duration {
+            seconds: duration.num_seconds() as u32,
+            ..Default::default()
+        };
+        dur.smooth();
+        dur
     }
 }
 
@@ -683,6 +734,61 @@ mod tests {
 
         let task: Task = task_str.to_string().into();
         assert_eq!(task.id, 0);
+    }
+    #[test]
+    fn convert_durations() {
+
+        let duration = time::Duration::from_secs(50);
+        let tasklib_duration: Duration = duration.into();
+        assert_eq!(
+            tasklib_duration,
+            Duration {
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+
+        let duration = time::Duration::from_secs((40 * 60) + 50);
+        let tasklib_duration: Duration = duration.into();
+        assert_eq!(tasklib_duration.to_string(), "PT40M50S");
+        assert_eq!(
+            tasklib_duration,
+            Duration {
+                minutes: 40,
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+
+        let chrono_duration = chrono::Duration::seconds(50);
+        let tasklib_duration: Duration = chrono_duration.into();
+        assert_eq!(
+            tasklib_duration,
+            Duration {
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+
+        let duration = time::Duration::from_secs(50);
+        let tasklib_duration = Duration::from(duration);
+        assert_eq!(
+            tasklib_duration,
+            Duration {
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+
+        let chrono_duration = chrono::Duration::seconds(50);
+        let tasklib_duration = Duration::from(chrono_duration);
+        assert_eq!(
+            tasklib_duration,
+            Duration {
+                seconds: 50,
+                ..Default::default()
+            }
+        );
     }
 }
 
