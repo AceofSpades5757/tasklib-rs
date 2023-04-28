@@ -102,7 +102,7 @@ fn tw_dt_to_str_opt<S: Serializer>(dt: &Option<DateTime<Utc>>, s: S) -> Result<S
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
     id: usize,
     uuid: String,
@@ -208,7 +208,7 @@ impl From<&str> for Task {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Annotation {
     #[serde(serialize_with = "tw_dt_to_str", deserialize_with = "tw_str_to_dt")]
     entry: DateTime<Utc>,
@@ -216,7 +216,7 @@ pub struct Annotation {
 }
 
 // #[derive(Debug, Serialize)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Status {
     #[serde(rename = "completed")]
     Completed,
@@ -228,7 +228,7 @@ pub enum Status {
     Deleted,
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct Duration {
     years: u32,
     months: u32,
