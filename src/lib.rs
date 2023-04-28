@@ -613,3 +613,7 @@ mod tests {
         assert_eq!(task.id, 0);
     }
 }
+
+pub mod prelude {
+    pub use super::Task;
+}
