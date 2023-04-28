@@ -180,6 +180,34 @@ impl Task {
     }
 }
 
+impl FromStr for Task {
+    //type Err = ParseError;
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let task: Task = serde_json::from_str(s)?;
+        Ok(task)
+    }
+}
+
+impl From<Task> for String {
+    fn from(task: Task) -> Self {
+        serde_json::to_string(&task).expect("task turned into string")
+    }
+}
+
+impl From<String> for Task {
+    fn from(s: String) -> Self {
+        Task::from_str(&s).expect("string turned into task")
+    }
+}
+
+impl From<&str> for Task {
+    fn from(s: &str) -> Self {
+        Task::from_str(s).expect("string turned into task")
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Annotation {
     #[serde(serialize_with = "tw_dt_to_str", deserialize_with = "tw_str_to_dt")]
@@ -546,5 +574,36 @@ mod tests {
             }
             .to_string()
         );
+    }
+
+    #[test]
+    /// Test parsing a task from a string using different methods
+    fn parse_task() {
+        let task_str = r#"
+        {
+            "id": 0,
+            "description": "Task to do.",
+            "elapsed": "PT2H",
+            "end": "20220131T083000Z",
+            "entry": "20220131T083000Z",
+            "modified": "20220131T083000Z",
+            "project": "Daily",
+            "start": "20220131T083000Z",
+            "status": "pending",
+            "uuid": "d67fce70-c0b6-43c5-affc-a21e64567d40",
+            "tags": [
+                "WORK"
+            ],
+            "urgency": 9.91234
+        }
+        "#;
+        let task = task_str.parse::<Task>().unwrap();
+        assert_eq!(task.id, 0);
+
+        let task = Task::from(task_str);
+        assert_eq!(task.id, 0);
+
+        let task = Task::from(task_str.to_string());
+        assert_eq!(task.id, 0);
     }
 }
