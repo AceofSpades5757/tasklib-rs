@@ -22,9 +22,9 @@
 //! }"#;
 //!
 //! // Getting a Task from your input JSON string.
-//! let task: Task = serde_json::from_str(json).expect("valid json parsed into a task");
+//! let task: Task = Task::from(json);
 //! // Getting a String from your Serialized Task
-//! let task_str: String = serde_json::to_string(&task).expect("valid json string representing a task");
+//! let task_str: String = task.into();
 //! ```
 
 use std::fmt;
@@ -604,6 +604,12 @@ mod tests {
         assert_eq!(task.id, 0);
 
         let task = Task::from(task_str.to_string());
+        assert_eq!(task.id, 0);
+
+        let task: Task = task_str.into();
+        assert_eq!(task.id, 0);
+
+        let task: Task = task_str.to_string().into();
         assert_eq!(task.id, 0);
     }
 }
