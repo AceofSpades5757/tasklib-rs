@@ -7,7 +7,6 @@
 //! {
 //!   "id": 0,
 //!   "description": "Task to do.",
-//!   "elapsed": "PT2H",
 //!   "end": "20220131T083000Z",
 //!   "entry": "20220131T083000Z",
 //!   "modified": "20220131T083000Z",
@@ -108,8 +107,6 @@ pub struct Task {
     id: usize,
     uuid: String,
     description: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    elapsed: Option<Duration>,
     #[serde(
         serialize_with = "tw_dt_to_str_opt",
         skip_serializing_if = "Option::is_none",
@@ -148,9 +145,6 @@ impl Task {
     }
     pub fn description(&self) -> &str {
         &self.description
-    }
-    pub fn elapsed(&self) -> Option<&Duration> {
-        self.elapsed.as_ref()
     }
     pub fn start(&self) -> Option<&DateTime<Utc>> {
         self.start.as_ref()
@@ -706,7 +700,6 @@ mod tests {
         {
             "id": 0,
             "description": "Task to do.",
-            "elapsed": "PT2H",
             "end": "20220131T083000Z",
             "entry": "20220131T083000Z",
             "modified": "20220131T083000Z",
