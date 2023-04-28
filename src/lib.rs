@@ -267,6 +267,18 @@ impl Duration {
     }
 }
 
+impl From<String> for Duration {
+    fn from(s: String) -> Self {
+        Duration::from_str(&s).expect("string turned into duration")
+    }
+}
+
+impl From<&str> for Duration {
+    fn from(s: &str) -> Self {
+        Duration::from_str(s).expect("string turned into duration")
+    }
+}
+
 impl Serialize for Duration {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -455,6 +467,66 @@ mod tests {
         );
         assert_eq!(
             "P1Y2M3DT12H40M50S".parse::<Duration>().unwrap(),
+            Duration {
+                years: 1,
+                months: 2,
+                days: 3,
+                hours: 12,
+                minutes: 40,
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            {
+                let dur: Duration = "P1Y2M3DT12H40M50S".into();
+                dur
+            },
+            Duration {
+                years: 1,
+                months: 2,
+                days: 3,
+                hours: 12,
+                minutes: 40,
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            {
+                let dur: Duration = "P1Y2M3DT12H40M50S".to_string().into();
+                dur
+            },
+            Duration {
+                years: 1,
+                months: 2,
+                days: 3,
+                hours: 12,
+                minutes: 40,
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            {
+                let dur: Duration = Duration::from("P1Y2M3DT12H40M50S");
+                dur
+            },
+            Duration {
+                years: 1,
+                months: 2,
+                days: 3,
+                hours: 12,
+                minutes: 40,
+                seconds: 50,
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            {
+                let dur: Duration = Duration::from("P1Y2M3DT12H40M50S".to_string());
+                dur
+            },
             Duration {
                 years: 1,
                 months: 2,
