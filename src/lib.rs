@@ -37,7 +37,7 @@ use regex::Regex;
 use serde::ser::SerializeStruct;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-use udas::Uda;
+use udas::UdaValue;
 
 const DATETIME_FORMAT: &str = "%Y%m%dT%H%M%SZ";
 
@@ -116,41 +116,9 @@ fn tw_dt_to_str_opt_se<S: Serializer>(dt: &Option<DateTime<Utc>>, s: S) -> Resul
     }
 }
 
-/// Taskwarrior UDA to String serializer
-///
-/// Uda -> String
-fn tw_uda_to_str<S: Serializer>(uda: Uda, s: S) -> Result<S::Ok, S::Error> {
-    s.serialize_str(&uda.to_string())
-}
-
-/// Taskwarrior String to UDA deserializer
-///
-/// String -> Uda
-fn tw_str_to_uda<'de, D>(deserializer: D) -> Result<Uda, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct UdaStringVisitor;
-
-    impl<'de> de::Visitor<'de> for UdaStringVisitor {
-        type Value = Uda;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a string containg UDA data")
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            //Ok(Uda::from(v).expect("string turned into UDA"))
-            Ok(Uda::from(v))
-        }
-    }
-    deserializer.deserialize_any(UdaStringVisitor)
-}
-
 /// See all columns using `task columns` and `task _columns`.
+///
+/// UDAs will only deserialize to a string or numeric type. Durations and dates will be parsed to a string.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
     id: usize,
@@ -210,8 +178,8 @@ pub struct Task {
     mask: Option<String>,
     #[serde(default)]
     parent: Option<Uuid>,
-    /// Used with recurance templates.
     #[serde(default)]
+    /// Used with recurance templates.
     recur: Option<Duration>,
     #[serde(serialize_with = "tw_dt_to_str_se", deserialize_with = "tw_str_to_dt_de")]
     modified: DateTime<Utc>,
@@ -223,13 +191,8 @@ pub struct Task {
     urgency: f64,
     #[serde(default)]
     annotations: Vec<Annotation>,
-    //#[serde(default)]
-    //udas: HashMap<String, Uda>,
-    // Any other attributes are UDAs and should be stored in a HashMap as a string type UDA.
-    //#[serde(flatten)]
-    //#[serde(flatten, serialize_with = "tw_uda_to_str", deserialize_with = "tw_str_to_uda")]
-    //#[serde(serialize_with = "tw_uda_to_str", deserialize_with = "tw_str_to_uda")]
-    //udas: HashMap<String, Uda>,
+    #[serde(flatten)]
+    udas: HashMap<String, UdaValue>,
 }
 
 /// Getters (Immutable)
@@ -270,7 +233,7 @@ impl Task {
     pub fn annotations(&self) -> &[Annotation] {
         &self.annotations
     }
-    pub fn udas(&self) -> &HashMap<String, Uda> {
+    pub fn udas(&self) -> &HashMap<String, UdaValue> {
         &self.udas
     }
 }
@@ -566,7 +529,7 @@ pub struct TaskBuilder {
     parent: Option<Uuid>,
     depends: Option<Vec<Uuid>>,
     urgency: Option<f64>,
-    //udas: Option<HashMap<String, Uda>>,
+    udas: Option<HashMap<String, UdaValue>>,
 }
 
 impl TaskBuilder {
@@ -658,10 +621,10 @@ impl TaskBuilder {
         self.urgency = Some(urgency);
         self
     }
-    //pub fn uda(mut self, uda: Uda) -> Self {
-        //self.uda = Some(uda);
-        //self
-    //}
+    pub fn uda(mut self, name: String, uda: UdaValue) -> Self {
+        self.udas.get_or_insert_with(HashMap::new).insert(name, uda);
+        self
+    }
 }
 
 impl TaskBuilder {
@@ -693,8 +656,7 @@ impl TaskBuilder {
             wait: self.wait,
             due: self.due,
             urgency: self.urgency.unwrap_or(0.0),
-            /// FIXME
-            udas: HashMap::new(),
+            udas: self.udas.unwrap_or(HashMap::new()),
         }
     }
 }
@@ -708,6 +670,122 @@ mod udas {
     use super::tw_str_to_dt_de;
     use chrono::{self, offset::Utc, DateTime};
 
+    #[derive(Debug, Clone, PartialEq, Serialize)]
+    pub enum UdaValue {
+        String(String),
+        Numeric(f64),
+        #[serde(serialize_with = "tw_dt_to_str_se")]
+        Date(DateTime<Utc>),
+        Duration(Duration),
+    }
+
+    impl<'de> serde::Deserialize<'de> for UdaValue {
+        fn deserialize<D>(deserializer: D) -> Result<UdaValue, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct UdaValueVisitor;
+
+            impl<'de> serde::de::Visitor<'de> for UdaValueVisitor {
+                type Value = UdaValue;
+
+                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    formatter.write_str("a string or a number")
+                }
+
+                fn visit_str<E>(self, value: &str) -> Result<UdaValue, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(UdaValue::String(value.to_string()))
+                }
+
+                fn visit_i64<E>(self, value: i64) -> Result<UdaValue, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(UdaValue::Numeric(value as f64))
+                }
+
+                fn visit_u64<E>(self, value: u64) -> Result<UdaValue, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(UdaValue::Numeric(value as f64))
+                }
+
+                fn visit_f64<E>(self, value: f64) -> Result<UdaValue, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(UdaValue::Numeric(value))
+                }
+            }
+
+            deserializer.deserialize_any(UdaValueVisitor)
+        }
+    }
+
+    /// Implement == against string
+    impl PartialEq<String> for UdaValue {
+        fn eq(&self, other: &String) -> bool {
+            match self {
+                UdaValue::String(s) => s == other,
+                _ => false,
+            }
+        }
+    }
+
+    /// Implement == against &str
+    impl PartialEq<str> for UdaValue {
+        fn eq(&self, other: &str) -> bool {
+            match self {
+                UdaValue::String(s) => s == other,
+                _ => false,
+            }
+        }
+    }
+
+    /// Implement == against f64
+    impl PartialEq<f64> for UdaValue {
+        fn eq(&self, other: &f64) -> bool {
+            match self {
+                UdaValue::Numeric(n) => n == other,
+                _ => false,
+            }
+        }
+    }
+
+    /// Implement == against i64
+    impl PartialEq<i64> for UdaValue {
+        fn eq(&self, other: &i64) -> bool {
+            match self {
+                UdaValue::Numeric(n) => *n as i64 == *other,
+                _ => false,
+            }
+        }
+    }
+
+    /// Implement == against DateTime<Utc>
+    impl PartialEq<DateTime<Utc>> for UdaValue {
+        fn eq(&self, other: &DateTime<Utc>) -> bool {
+            match self {
+                UdaValue::Date(d) => d == other,
+                _ => false,
+            }
+        }
+    }
+
+    /// Implement == against Duration
+    impl PartialEq<Duration> for UdaValue {
+        fn eq(&self, other: &Duration) -> bool {
+            match self {
+                UdaValue::Duration(d) => d == other,
+                _ => false,
+            }
+        }
+    }
+
     /// Represents a Taskwarrior UDA
     ///
     /// <https://taskwarrior.org/docs/udas/>
@@ -720,28 +798,32 @@ mod udas {
     /// The label defaults to the capitalized form of the name.
     ///
     /// A string type can have a list of values.
-    #[derive(Debug, Clone, PartialEq)]
+    //#[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub enum Uda {
         String{
-            label: String,
             name: String,
             value: String,
+            // defaults to ""
+            label: String,
             default: String,
             values: Vec<String>,
             coefficient: Option<f32>,
         },
         Numeric{
             name: String,
-            label: String,
             value: f64,
+            // defaults to ""
+            label: String,
             default: f64,
             coefficient: Option<f32>,
         },
         Date{
             name: String,
-            label: String,
             #[serde(serialize_with = "tw_dt_to_str_se", deserialize_with = "tw_str_to_dt_de")]
             value: DateTime<Utc>,
+            // defaults to ""
+            label: String,
             #[serde(
                 serialize_with = "tw_dt_to_str_opt_se",
                 skip_serializing_if = "Option::is_none",
@@ -753,55 +835,12 @@ mod udas {
         },
         Duration{
             name: String,
-            label: String,
             value: Duration,
+            // defaults to ""
+            label: String,
             default: Option<Duration>,
             coefficient: Option<f32>,
         },
-    }
-
-    impl Uda {
-        pub fn to_string(&self) -> String {
-            match self {
-                Uda::String { name, value, .. } => format!("{}", value),
-                Uda::Numeric { name, value, .. } => format!("{}", value),
-                Uda::Date { name, value, .. } => format!("{}", value),
-                Uda::Duration { name, value, .. } => format!("{}", value.to_string()),
-            }
-        }
-    }
-
-    impl From<Uda> for String {
-        fn from(uda: Uda) -> Self {
-            uda.to_string()
-        }
-    }
-    
-    /// FIXME
-    impl From<String> for Uda {
-        fn from(s: String) -> Self {
-            Uda::String {
-                name: s.clone(),
-                label: s.clone(),
-                value: s.clone(),
-                default: s.clone(),
-                values: vec![s.clone()],
-                coefficient: None,
-            }
-        }
-    }
-
-    impl From<&str> for Uda {
-        fn from(s: &str) -> Self {
-            Uda::String {
-                name: s.to_string(),
-                label: s.to_string(),
-                value: s.to_string(),
-                default: s.to_string(),
-                values: vec![s.to_string()],
-                coefficient: None,
-            }
-        }
     }
 
     /// Manually implement Deserialize for Uda
@@ -810,8 +849,6 @@ mod udas {
     /// "elapsed": 2.0,     -> Uda::Numeric { name: String::from("elapsed"), value: 2.0, .. }
     /// "elapsed": "20220131T083000Z", -> Uda::Date { name: String::from("elapsed"), value: Utc.datetime_from_str("20220131T083000Z", "%Y%m%dT%H%M%SZ")
     /// "elapsed": "PT2H",  -> Uda::Duration { name: String::from("elapsed"), value: Duration::hours(2), .. }
-
-
 
     /// Allow Uda::String{ .. } to be compared to a string
     ///
@@ -913,15 +950,17 @@ mod udas {
         #[test]
         fn test() {
             let uda_1 = Uda::String {
-                label: "my_uda".to_string(),
+                name: "my_uda".to_string(),
                 value: "my_value".to_string(),
+                label: "".to_string(),
                 default: "my_default".to_string(),
                 values: vec!["my_value".to_string(), "my_value_2".to_string()],
                 coefficient: Some(1.0),
             };
             let uda_2 = Uda::String {
-                label: "my_uda".to_string(),
+                name: "my_uda".to_string(),
                 value: "my_value".to_string(),
+                label: "".to_string(),
                 default: "my_default".to_string(),
                 values: vec!["my_value".to_string(), "my_value_2".to_string()],
                 coefficient: Some(1.0),
@@ -1314,9 +1353,77 @@ mod tests {
         }
         "#;
         let task = task_str.parse::<Task>().unwrap();
-        //assert_eq!(task.udas().get("elapsed").unwrap(), Duration::from("PT2H"));
-        // Default type is string
         assert_eq!(task.udas().get("elapsed").unwrap(), "PT2H");
+    }
+
+    #[test]
+    /// Test the different types of UDA values
+    fn test_udas_types() {
+        // String
+        let task_str = r#"
+        {
+            "id": 0,
+            "description": "Task to do.",
+            "end": "20220131T083000Z",
+            "entry": "20220131T083000Z",
+            "modified": "20220131T083000Z",
+            "elapsed": "PT2H",
+            "project": "Daily",
+            "start": "20220131T083000Z",
+            "status": "pending",
+            "uuid": "d67fce70-c0b6-43c5-affc-a21e64567d40",
+            "tags": [
+                "WORK"
+            ],
+            "urgency": 9.91234
+        }
+        "#;
+        let task = task_str.parse::<Task>().unwrap();
+        assert_eq!(task.udas().get("elapsed").unwrap(), "PT2H");
+
+        // Number (integer)
+        let task_str = r#"
+        {
+            "id": 0,
+            "description": "Task to do.",
+            "end": "20220131T083000Z",
+            "entry": "20220131T083000Z",
+            "modified": "20220131T083000Z",
+            "elapsed": 2,
+            "project": "Daily",
+            "start": "20220131T083000Z",
+            "status": "pending",
+            "uuid": "d67fce70-c0b6-43c5-affc-a21e64567d40",
+            "tags": [
+                "WORK"
+            ],
+            "urgency": 9.91234
+        }
+        "#;
+        let task = task_str.parse::<Task>().unwrap();
+        assert_eq!(task.udas().get("elapsed").unwrap(), &2);
+
+        // Number (float)
+        let task_str = r#"
+        {
+            "id": 0,
+            "description": "Task to do.",
+            "end": "20220131T083000Z",
+            "entry": "20220131T083000Z",
+            "modified": "20220131T083000Z",
+            "elapsed": 2.5,
+            "project": "Daily",
+            "start": "20220131T083000Z",
+            "status": "pending",
+            "uuid": "d67fce70-c0b6-43c5-affc-a21e64567d40",
+            "tags": [
+                "WORK"
+            ],
+            "urgency": 9.91234
+        }
+        "#;
+        let task = task_str.parse::<Task>().unwrap();
+        assert_eq!(task.udas().get("elapsed").unwrap(), &2.5);
     }
 
     #[test]
