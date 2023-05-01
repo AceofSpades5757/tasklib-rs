@@ -238,6 +238,49 @@ impl Task {
     }
 }
 
+/// Getters (Mutable)
+impl Task {
+    pub fn id_mut(&mut self) -> &mut usize {
+        &mut self.id
+    }
+    pub fn uuid_mut(&mut self) -> &mut Uuid {
+        &mut self.uuid
+    }
+    pub fn description_mut(&mut self) -> &mut String {
+        &mut self.description
+    }
+    pub fn start_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.start
+    }
+    pub fn end_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.end
+    }
+    pub fn entry_mut(&mut self) -> &mut DateTime<Utc> {
+        &mut self.entry
+    }
+    pub fn modified_mut(&mut self) -> &mut DateTime<Utc> {
+        &mut self.modified
+    }
+    pub fn project_mut(&mut self) -> &mut String {
+        &mut self.project
+    }
+    pub fn status_mut(&mut self) -> &mut Status {
+        &mut self.status
+    }
+    pub fn tags_mut(&mut self) -> &mut Vec<String> {
+        &mut self.tags
+    }
+    pub fn urgency_mut(&mut self) -> &mut f64 {
+        &mut self.urgency
+    }
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+    pub fn udas_mut(&mut self) -> &mut HashMap<String, UdaValue> {
+        &mut self.udas
+    }
+}
+
 /*
  * TODO: Implement from_stream (takes a json stream and returns a task)
  * TODO: Implement from_stdin (automatically reads from stdin and returns a task)
@@ -723,6 +766,20 @@ mod udas {
             }
 
             deserializer.deserialize_any(UdaValueVisitor)
+        }
+    }
+
+    /// Implement tasklib::Duration into UdaValue
+    impl From<Duration> for UdaValue {
+        fn from(d: Duration) -> Self {
+            UdaValue::Duration(d)
+        }
+    }
+
+    /// Implement chrono::DateTime into UdaValue
+    impl From<DateTime<Utc>> for UdaValue {
+        fn from(d: DateTime<Utc>) -> Self {
+            UdaValue::Date(d)
         }
     }
 
