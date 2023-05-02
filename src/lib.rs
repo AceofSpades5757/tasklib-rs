@@ -125,7 +125,13 @@ fn tw_dt_to_str_opt_se<S: Serializer>(dt: &Option<DateTime<Utc>>, s: S) -> Resul
 /// UDAs will only deserialize to a string or numeric type. Durations and dates will be parsed to a string.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
-    id: usize,
+    /// Task ID
+    ///
+    /// This is the internal ID of the task, and is not the same as the UUID.
+    ///
+    /// This is temporary and may not exist for some tasks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<usize>,
     uuid: Uuid,
     description: String,
     #[serde(
@@ -176,17 +182,22 @@ pub struct Task {
     )]
     due: Option<DateTime<Utc>>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     depends: Vec<Uuid>,
-    #[serde(default)]
     /// <https://taskwarrior.org/docs/commands/columns/>
     /// Type: numeric
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     imask: Option<i64>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     mask: Option<String>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     parent: Option<Uuid>,
-    #[serde(default)]
     /// Used with recurance templates.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     recur: Option<Duration>,
     #[serde(
         serialize_with = "tw_dt_to_str_se",
@@ -194,20 +205,25 @@ pub struct Task {
     )]
     modified: DateTime<Utc>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
     project: String,
     status: Status,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     tags: Vec<String>,
-    urgency: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    urgency: Option<f64>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     annotations: Vec<Annotation>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     #[serde(flatten)]
     udas: HashMap<String, UdaValue>,
 }
 
 /// Getters (Immutable)
 impl Task {
-    pub fn id(&self) -> &usize {
+    pub fn id(&self) -> &Option<usize> {
         &self.id
     }
     pub fn uuid(&self) -> &Uuid {
@@ -237,7 +253,7 @@ impl Task {
     pub fn tags(&self) -> &[String] {
         &self.tags
     }
-    pub fn urgency(&self) -> &f64 {
+    pub fn urgency(&self) -> &Option<f64> {
         &self.urgency
     }
     pub fn annotations(&self) -> &[Annotation] {
@@ -250,7 +266,7 @@ impl Task {
 
 /// Getters (Mutable)
 impl Task {
-    pub fn id_mut(&mut self) -> &mut usize {
+    pub fn id_mut(&mut self) -> &mut Option<usize> {
         &mut self.id
     }
     pub fn uuid_mut(&mut self) -> &mut Uuid {
@@ -280,7 +296,7 @@ impl Task {
     pub fn tags_mut(&mut self) -> &mut Vec<String> {
         &mut self.tags
     }
-    pub fn urgency_mut(&mut self) -> &mut f64 {
+    pub fn urgency_mut(&mut self) -> &mut Option<f64> {
         &mut self.urgency
     }
     pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
@@ -497,7 +513,7 @@ impl TaskBuilder {
     }
     pub fn build(self) -> Task {
         Task {
-            id: self.id.unwrap(),
+            id: self.id,
             uuid: self.uuid.unwrap(),
             description: self.description.unwrap_or("".to_string()),
             entry: self.entry.unwrap_or(Utc::now()),
@@ -517,7 +533,7 @@ impl TaskBuilder {
             depends: self.depends.unwrap_or(vec![]),
             wait: self.wait,
             due: self.due,
-            urgency: self.urgency.unwrap_or(0.0),
+            urgency: self.urgency,
             udas: self.udas.unwrap_or(HashMap::new()),
         }
     }
@@ -994,19 +1010,19 @@ mod tests {
         }
         "#;
         let task = task_str.parse::<Task>().unwrap();
-        assert_eq!(task.id, 0);
+        assert_eq!(task.id, Some(0));
 
         let task = Task::from(task_str);
-        assert_eq!(task.id, 0);
+        assert_eq!(task.id, Some(0));
 
         let task = Task::from(task_str.to_string());
-        assert_eq!(task.id, 0);
+        assert_eq!(task.id, Some(0));
 
         let task: Task = task_str.into();
-        assert_eq!(task.id, 0);
+        assert_eq!(task.id, Some(0));
 
         let task: Task = task_str.to_string().into();
-        assert_eq!(task.id, 0);
+        assert_eq!(task.id, Some(0));
     }
     #[test]
     fn convert_durations() {
@@ -1132,7 +1148,7 @@ mod tests {
     }
 
     #[test]
-    fn test_builder() {
+    fn builder() {
         use chrono::ParseError;
         use chrono::TimeZone;
 
@@ -1144,7 +1160,6 @@ mod tests {
         }
 
         let task = TaskBuilder::new()
-            .id(0)
             .description("Task to do.")
             .end(tw_str_to_dt("20220131T083000Z").unwrap())
             .entry(tw_str_to_dt("20220131T083000Z").unwrap())
@@ -1157,7 +1172,25 @@ mod tests {
             .urgency(9.91234)
             .parent("d67fce70-c0b6-43c5-affc-a21e64567d40")
             .build();
-        assert_eq!(task.id, 0);
+        assert_eq!(task.id(), &None);
+    }
+
+    #[test]
+    fn deserialize_task() {
+        // Task should not include null or empty fields when deserialized to JSON
+        let task_str = r#"
+        {
+            "uuid": "d67fce70-c0b6-43c5-affc-a21e64567d40",
+            "description": "Task to do.",
+            "status": "pending",
+            "entry": "20220131T083000Z",
+            "modified": "20220131T083000Z"
+        }
+        "#;
+        let task = task_str.parse::<Task>().unwrap();
+        let task_json = serde_json::to_string(&task).unwrap();
+        let expected_task_json = r#"{"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","entry":"20220131T083000Z","modified":"20220131T083000Z","status":"pending"}"#;
+        assert_eq!(task_json, expected_task_json);
     }
 }
 
