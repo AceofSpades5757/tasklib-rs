@@ -26,11 +26,13 @@
 //! let task_str: String = task.into();
 //! ```
 
+use std::string::ToString;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use std::time;
 use uuid::Uuid;
+use std::io::{self, Read};
 
 use chrono::{self, offset::Utc, DateTime, NaiveDateTime};
 use regex::Regex;
@@ -281,24 +283,31 @@ impl Task {
     }
 }
 
-/*
- * TODO: Implement from_stream (takes a json stream and returns a task)
- * TODO: Implement from_stdin (automatically reads from stdin and returns a task)
+/// Conversion Methods
+impl Task {
+    pub fn to_json(&self) -> String{
+        serde_json::to_string(self).unwrap()
+    }
+}
+
+/// ToString (JSON)
+///
+/// Uses JSON as this is the most common use case for converting a Task to a string.
+impl ToString for Task {
+    fn to_string(&self) -> String {
+        self.to_json()
+    }
+}
 
 /// Constructors
 impl Task {
-    fn from_stream(stream: &mut impl Read) -> Result<Self, Error> {
-        let mut buf = String::new();
-        stream.read_to_string(&mut buf)?;
-        let task: Task = serde_json::from_str(&buf)?;
-        Ok(task)
+    fn from_reader(reader: impl Read) -> Result<Self, serde_json::Error> {
+        serde_json::from_reader(reader)
     }
-    fn from_stdin() -> Result<Self, Error> {
-        let mut stdin = io::stdin();
-        Task::from_stream(&mut stdin)
+    fn from_stdin() -> Result<Self, serde_json::Error> {
+        Self::from_reader(io::stdin())
     }
 }
-*/
 
 impl FromStr for Task {
     type Err = serde_json::Error;
