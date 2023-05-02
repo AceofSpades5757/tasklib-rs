@@ -26,20 +26,20 @@
 //! let task_str: String = task.into();
 //! ```
 
-use std::string::ToString;
 use std::collections::HashMap;
 use std::fmt;
-use std::str::FromStr;
-use std::time;
-use uuid::Uuid;
 use std::io::{self, Read};
+use std::str::FromStr;
+use std::string::ToString;
+use uuid::Uuid;
 
 use chrono::{self, offset::Utc, DateTime, NaiveDateTime};
-use regex::Regex;
-use serde::ser::SerializeStruct;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+use duration::Duration;
 use udas::UdaValue;
+
+mod duration;
 
 const DATETIME_FORMAT: &str = "%Y%m%dT%H%M%SZ";
 
@@ -64,7 +64,8 @@ where
             E: de::Error,
         {
             Ok(DateTime::<Utc>::from_utc(
-                NaiveDateTime::parse_from_str(v, DATETIME_FORMAT).expect("string turned into datetime"),
+                NaiveDateTime::parse_from_str(v, DATETIME_FORMAT)
+                    .expect("string turned into datetime"),
                 Utc,
             ))
         }
@@ -93,7 +94,8 @@ where
             E: de::Error,
         {
             Ok(Some(DateTime::<Utc>::from_utc(
-                NaiveDateTime::parse_from_str(v, DATETIME_FORMAT).expect("string turned into datetime"),
+                NaiveDateTime::parse_from_str(v, DATETIME_FORMAT)
+                    .expect("string turned into datetime"),
                 Utc,
             )))
         }
@@ -140,7 +142,10 @@ pub struct Task {
         default
     )]
     end: Option<DateTime<Utc>>,
-    #[serde(serialize_with = "tw_dt_to_str_se", deserialize_with = "tw_str_to_dt_de")]
+    #[serde(
+        serialize_with = "tw_dt_to_str_se",
+        deserialize_with = "tw_str_to_dt_de"
+    )]
     entry: DateTime<Utc>,
     #[serde(
         serialize_with = "tw_dt_to_str_opt_se",
@@ -183,7 +188,10 @@ pub struct Task {
     #[serde(default)]
     /// Used with recurance templates.
     recur: Option<Duration>,
-    #[serde(serialize_with = "tw_dt_to_str_se", deserialize_with = "tw_str_to_dt_de")]
+    #[serde(
+        serialize_with = "tw_dt_to_str_se",
+        deserialize_with = "tw_str_to_dt_de"
+    )]
     modified: DateTime<Utc>,
     #[serde(default)]
     project: String,
@@ -285,7 +293,7 @@ impl Task {
 
 /// Conversion Methods
 impl Task {
-    pub fn to_json(&self) -> String{
+    pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
 }
@@ -338,7 +346,10 @@ impl From<&str> for Task {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Annotation {
-    #[serde(serialize_with = "tw_dt_to_str_se", deserialize_with = "tw_str_to_dt_de")]
+    #[serde(
+        serialize_with = "tw_dt_to_str_se",
+        deserialize_with = "tw_str_to_dt_de"
+    )]
     entry: DateTime<Utc>,
     description: String,
 }
@@ -356,208 +367,6 @@ pub enum Status {
     Deleted,
 }
 
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct Duration {
-    years: u32,
-    months: u32,
-    days: u32,
-    hours: u32,
-    minutes: u32,
-    seconds: u32,
-}
-
-impl Duration {
-    pub fn to_string(&self) -> String {
-        let mut buffer = String::new();
-        buffer.push_str("P");
-        if self.years > 0 {
-            buffer.push_str(&format!("{}Y", self.years))
-        }
-        if self.months > 0 {
-            buffer.push_str(&format!("{}M", self.months))
-        }
-        if self.days > 0 {
-            buffer.push_str(&format!("{}D", self.days))
-        }
-        if self.hours > 0 || self.minutes > 0 || self.seconds > 0 {
-            buffer.push_str("T")
-        }
-        if self.hours > 0 {
-            buffer.push_str(&format!("{}H", self.hours))
-        }
-        if self.minutes > 0 {
-            buffer.push_str(&format!("{}M", self.minutes))
-        }
-        if self.seconds > 0 {
-            buffer.push_str(&format!("{}S", self.seconds))
-        }
-        buffer
-    }
-}
-
-impl Duration {
-    /// Shift the values around to their reasonable maxes.
-    ///
-    /// e.g. seconds should never be more then 59
-    fn smooth(&mut self) {
-        if self.seconds > 59 {
-            self.minutes += self.seconds / 60;
-            self.seconds = self.seconds % 60;
-        }
-        if self.minutes > 59 {
-            self.hours += self.minutes / 60;
-            self.minutes = self.minutes % 60;
-        }
-        if self.hours > 23 {
-            self.days += self.hours / 24;
-            self.hours = self.hours % 24;
-        }
-        if self.days > 30 {
-            self.months += self.days / 30;
-            self.days = self.days % 30;
-        }
-        if self.months > 11 {
-            self.years += self.months / 12;
-            self.months = self.months % 12;
-        }
-    }
-}
-
-impl From<String> for Duration {
-    fn from(s: String) -> Self {
-        Duration::from_str(&s).expect("string turned into duration")
-    }
-}
-
-impl From<&str> for Duration {
-    fn from(s: &str) -> Self {
-        Duration::from_str(s).expect("string turned into duration")
-    }
-}
-
-impl From<time::Duration> for Duration {
-    fn from(duration: time::Duration) -> Self {
-        let mut dur = Duration {
-            seconds: duration.as_secs() as u32,
-            ..Default::default()
-        };
-        dur.smooth();
-        dur
-    }
-}
-
-impl From<chrono::Duration> for Duration {
-    fn from(duration: chrono::Duration) -> Self {
-        let mut dur = Duration {
-            seconds: duration.num_seconds() as u32,
-            ..Default::default()
-        };
-        dur.smooth();
-        dur
-    }
-}
-
-impl Serialize for Duration {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // 3 is the number of fields in the struct.
-        let mut state = serializer.serialize_struct("Color", 3)?;
-        state.serialize_field("r", &self.hours)?;
-        state.serialize_field("g", &self.minutes)?;
-        state.serialize_field("b", &self.seconds)?;
-        state.end()
-    }
-}
-
-impl FromStr for Duration {
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let re = Regex::new(concat!(
-            "P",
-            r"((?P<years>\d+)Y)?",
-            r"((?P<months>\d+)M)?",
-            r"((?P<days>\d+)D)?",
-            r"(T",
-            r"((?P<hours>\d+)H)?",
-            r"((?P<minutes>\d+)M)?",
-            r"((?P<seconds>\d+)S)?)?",
-        ))
-        .expect("valid regex");
-        dbg!(s);
-        let captures = re.captures(s).expect("valid duration string for capture");
-
-        let years = if let Some(years) = captures.name("years") {
-            years
-                .as_str()
-                .parse::<u32>()
-                .expect("valid number as string")
-        } else {
-            0
-        };
-        let months = if let Some(months) = captures.name("months") {
-            months
-                .as_str()
-                .parse::<u32>()
-                .expect("valid number as string")
-        } else {
-            0
-        };
-        let days = if let Some(days) = captures.name("days") {
-            days.as_str()
-                .parse::<u32>()
-                .expect("valid number as string")
-        } else {
-            0
-        };
-        let hours = if let Some(hours) = captures.name("hours") {
-            hours
-                .as_str()
-                .parse::<u32>()
-                .expect("valid number as string")
-        } else {
-            0
-        };
-        let minutes = if let Some(minutes) = captures.name("minutes") {
-            minutes
-                .as_str()
-                .parse::<u32>()
-                .expect("valid number as string")
-        } else {
-            0
-        };
-        let seconds = if let Some(seconds) = captures.name("seconds") {
-            seconds
-                .as_str()
-                .parse::<u32>()
-                .expect("valid number as string")
-        } else {
-            0
-        };
-
-        Ok(Duration {
-            years,
-            months,
-            days,
-            hours,
-            minutes,
-            seconds,
-        })
-    }
-}
-
-impl<'de> Deserialize<'de> for Duration {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        FromStr::from_str(&s).map_err(de::Error::custom)
-    }
-}
-
-/// TODO: Add udas.
 #[derive(Debug, Default)]
 pub struct TaskBuilder {
     id: Option<usize>,
@@ -716,11 +525,11 @@ impl TaskBuilder {
 
 mod udas {
 
-    use super::Duration;
     use super::tw_dt_to_str_opt_se;
-    use super::tw_str_to_dt_opt_de;
     use super::tw_dt_to_str_se;
     use super::tw_str_to_dt_de;
+    use super::tw_str_to_dt_opt_de;
+    use super::Duration;
     use chrono::{self, offset::Utc, DateTime};
 
     #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -868,7 +677,7 @@ mod udas {
     //#[derive(Debug, Clone, PartialEq)]
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub enum Uda {
-        String{
+        String {
             name: String,
             value: String,
             // defaults to ""
@@ -877,7 +686,7 @@ mod udas {
             values: Vec<String>,
             coefficient: Option<f32>,
         },
-        Numeric{
+        Numeric {
             name: String,
             value: f64,
             // defaults to ""
@@ -885,9 +694,12 @@ mod udas {
             default: f64,
             coefficient: Option<f32>,
         },
-        Date{
+        Date {
             name: String,
-            #[serde(serialize_with = "tw_dt_to_str_se", deserialize_with = "tw_str_to_dt_de")]
+            #[serde(
+                serialize_with = "tw_dt_to_str_se",
+                deserialize_with = "tw_str_to_dt_de"
+            )]
             value: DateTime<Utc>,
             // defaults to ""
             label: String,
@@ -900,7 +712,7 @@ mod udas {
             default: Option<DateTime<Utc>>,
             coefficient: Option<f32>,
         },
-        Duration{
+        Duration {
             name: String,
             value: Duration,
             // defaults to ""
@@ -923,7 +735,7 @@ mod udas {
     impl PartialEq<String> for Uda {
         fn eq(&self, other: &String) -> bool {
             match self {
-                Uda::String{value, ..} => value == other,
+                Uda::String { value, .. } => value == other,
                 _ => false,
             }
         }
@@ -932,7 +744,7 @@ mod udas {
     impl PartialEq<str> for Uda {
         fn eq(&self, other: &str) -> bool {
             match self {
-                Uda::String{value, ..} => value == other,
+                Uda::String { value, .. } => value == other,
                 _ => false,
             }
         }
@@ -942,10 +754,10 @@ mod udas {
         /// Get the type of the UDA as a string
         pub fn r#type(&self) -> String {
             match self {
-                Uda::String{..} => "string".to_string(),
-                Uda::Numeric{..} => "numeric".to_string(),
-                Uda::Date{..} => "date".to_string(),
-                Uda::Duration{..} => "duration".to_string(),
+                Uda::String { .. } => "string".to_string(),
+                Uda::Numeric { .. } => "numeric".to_string(),
+                Uda::Date { .. } => "date".to_string(),
+                Uda::Duration { .. } => "duration".to_string(),
             }
         }
     }
@@ -1043,272 +855,120 @@ mod tests {
     use super::*;
     #[test]
     fn serialize_durations_iso_8601() {
-        assert_eq!(
-            "P3D".parse::<Duration>().unwrap(),
-            Duration {
-                days: 3,
-                ..Default::default()
-            }
-        );
-        assert_eq!(
-            "P1000D".parse::<Duration>().unwrap(),
-            Duration {
-                days: 1000,
-                ..Default::default()
-            }
-        );
-        assert_eq!(
-            "PT10M".parse::<Duration>().unwrap(),
-            Duration {
-                minutes: 10,
-                ..Default::default()
-            }
-        );
-        assert_eq!(
-            "P10M".parse::<Duration>().unwrap(),
-            Duration {
-                months: 10,
-                ..Default::default()
-            }
-        );
+        assert_eq!("P3D".parse::<Duration>().unwrap(), Duration::days(3),);
+        assert_eq!("P1000D".parse::<Duration>().unwrap(), Duration::days(1000),);
+        assert_eq!("PT10M".parse::<Duration>().unwrap(), Duration::minutes(10),);
+        assert_eq!("P10M".parse::<Duration>().unwrap(), Duration::months(10),);
         assert_eq!(
             "P2M3D".parse::<Duration>().unwrap(),
-            Duration {
-                months: 2,
-                days: 3,
-                ..Default::default()
-            }
+            Duration::months(2) + Duration::days(3)
         );
-        assert_eq!(
-            "P1Y".parse::<Duration>().unwrap(),
-            Duration {
-                years: 1,
-                ..Default::default()
-            }
-        );
+        assert_eq!("P1Y".parse::<Duration>().unwrap(), Duration::years(1),);
         assert_eq!(
             "P1Y3D".parse::<Duration>().unwrap(),
-            Duration {
-                years: 1,
-                days: 3,
-                ..Default::default()
-            }
+            Duration::years(1) + Duration::days(3)
         );
-        assert_eq!(
-            "PT50S".parse::<Duration>().unwrap(),
-            Duration {
-                seconds: 50,
-                ..Default::default()
-            }
-        );
-        assert_eq!(
-            "PT40M".parse::<Duration>().unwrap(),
-            Duration {
-                minutes: 40,
-                ..Default::default()
-            }
-        );
+        assert_eq!("PT50S".parse::<Duration>().unwrap(), Duration::seconds(50));
+        assert_eq!("PT40M".parse::<Duration>().unwrap(), Duration::minutes(40));
         assert_eq!(
             "PT40M50S".parse::<Duration>().unwrap(),
-            Duration {
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::minutes(40) + Duration::seconds(50)
         );
         assert_eq!(
             "PT12H40M50S".parse::<Duration>().unwrap(),
-            Duration {
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::hours(12) + Duration::minutes(40) + Duration::seconds(50)
         );
         assert_eq!(
             "P1Y2M3DT12H40M50S".parse::<Duration>().unwrap(),
-            Duration {
-                years: 1,
-                months: 2,
-                days: 3,
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::years(1)
+                + Duration::months(2)
+                + Duration::days(3)
+                + Duration::hours(12)
+                + Duration::minutes(40)
+                + Duration::seconds(50)
         );
         assert_eq!(
             {
                 let dur: Duration = "P1Y2M3DT12H40M50S".into();
                 dur
             },
-            Duration {
-                years: 1,
-                months: 2,
-                days: 3,
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::years(1)
+                + Duration::months(2)
+                + Duration::days(3)
+                + Duration::hours(12)
+                + Duration::minutes(40)
+                + Duration::seconds(50)
         );
         assert_eq!(
             {
                 let dur: Duration = "P1Y2M3DT12H40M50S".to_string().into();
                 dur
             },
-            Duration {
-                years: 1,
-                months: 2,
-                days: 3,
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::years(1)
+                + Duration::months(2)
+                + Duration::days(3)
+                + Duration::hours(12)
+                + Duration::minutes(40)
+                + Duration::seconds(50)
         );
         assert_eq!(
             {
                 let dur: Duration = Duration::from("P1Y2M3DT12H40M50S");
                 dur
             },
-            Duration {
-                years: 1,
-                months: 2,
-                days: 3,
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::years(1)
+                + Duration::months(2)
+                + Duration::days(3)
+                + Duration::hours(12)
+                + Duration::minutes(40)
+                + Duration::seconds(50)
         );
         assert_eq!(
             {
                 let dur: Duration = Duration::from("P1Y2M3DT12H40M50S".to_string());
                 dur
             },
-            Duration {
-                years: 1,
-                months: 2,
-                days: 3,
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::years(1)
+                + Duration::months(2)
+                + Duration::days(3)
+                + Duration::hours(12)
+                + Duration::minutes(40)
+                + Duration::seconds(50)
         );
-    }
-    #[test]
-    fn serialize_durations() {
-        // Test other types of durations
-        todo!()
     }
     #[test]
     fn deserialize_durations() {
-        assert_eq!(
-            "P3D",
-            Duration {
-                days: 3,
-                ..Default::default()
-            }
-            .to_string()
-        );
-        assert_eq!(
-            "P1000D",
-            Duration {
-                days: 1000,
-                ..Default::default()
-            }
-            .to_string()
-        );
-        assert_eq!(
-            "PT10M",
-            Duration {
-                minutes: 10,
-                ..Default::default()
-            }
-            .to_string()
-        );
-        assert_eq!(
-            "P10M",
-            Duration {
-                months: 10,
-                ..Default::default()
-            }
-            .to_string()
-        );
+        assert_eq!("P3D", Duration::days(3).to_string());
+        assert_eq!("P1000D", Duration::days(1000).to_string());
+        assert_eq!("PT10M", Duration::minutes(10).to_string());
+        assert_eq!("P10M", Duration::months(10).to_string());
         assert_eq!(
             "P2M3D",
-            Duration {
-                months: 2,
-                days: 3,
-                ..Default::default()
-            }
-            .to_string()
+            (Duration::months(2) + Duration::days(3)).to_string()
         );
-        assert_eq!(
-            "P1Y",
-            Duration {
-                years: 1,
-                ..Default::default()
-            }
-            .to_string()
-        );
+        assert_eq!("P1Y", Duration::years(1).to_string());
         assert_eq!(
             "P1Y3D",
-            Duration {
-                years: 1,
-                days: 3,
-                ..Default::default()
-            }
-            .to_string()
+            (Duration::years(1) + Duration::days(3)).to_string()
         );
-        assert_eq!(
-            "PT50S",
-            Duration {
-                seconds: 50,
-                ..Default::default()
-            }
-            .to_string()
-        );
-        assert_eq!(
-            "PT40M",
-            Duration {
-                minutes: 40,
-                ..Default::default()
-            }
-            .to_string()
-        );
+        assert_eq!("PT50S", Duration::seconds(50).to_string());
+        assert_eq!("PT40M", Duration::minutes(40).to_string());
         assert_eq!(
             "PT40M50S",
-            Duration {
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
-            .to_string()
+            (Duration::minutes(40) + Duration::seconds(50)).to_string()
         );
         assert_eq!(
             "PT12H40M50S",
-            Duration {
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
-            .to_string()
+            (Duration::hours(12) + Duration::minutes(40) + Duration::seconds(50)).to_string()
         );
         assert_eq!(
             "P1Y2M3DT12H40M50S",
-            Duration {
-                years: 1,
-                months: 2,
-                days: 3,
-                hours: 12,
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            (Duration::years(1)
+                + Duration::months(2)
+                + Duration::days(3)
+                + Duration::hours(12)
+                + Duration::minutes(40)
+                + Duration::seconds(50))
             .to_string()
         );
     }
@@ -1350,58 +1010,31 @@ mod tests {
     }
     #[test]
     fn convert_durations() {
+        use std::time;
 
         let duration = time::Duration::from_secs(50);
         let tasklib_duration: Duration = duration.into();
-        assert_eq!(
-            tasklib_duration,
-            Duration {
-                seconds: 50,
-                ..Default::default()
-            }
-        );
+        assert_eq!(tasklib_duration, Duration::seconds(50));
 
         let duration = time::Duration::from_secs((40 * 60) + 50);
         let tasklib_duration: Duration = duration.into();
-        assert_eq!(tasklib_duration.to_string(), "PT40M50S");
+        assert_eq!(tasklib_duration.to_string(), "PT2450S");
         assert_eq!(
             tasklib_duration,
-            Duration {
-                minutes: 40,
-                seconds: 50,
-                ..Default::default()
-            }
+            Duration::minutes(40) + Duration::seconds(50)
         );
 
         let chrono_duration = chrono::Duration::seconds(50);
         let tasklib_duration: Duration = chrono_duration.into();
-        assert_eq!(
-            tasklib_duration,
-            Duration {
-                seconds: 50,
-                ..Default::default()
-            }
-        );
+        assert_eq!(tasklib_duration, Duration::seconds(50));
 
         let duration = time::Duration::from_secs(50);
         let tasklib_duration = Duration::from(duration);
-        assert_eq!(
-            tasklib_duration,
-            Duration {
-                seconds: 50,
-                ..Default::default()
-            }
-        );
+        assert_eq!(tasklib_duration, Duration::seconds(50));
 
         let chrono_duration = chrono::Duration::seconds(50);
         let tasklib_duration = Duration::from(chrono_duration);
-        assert_eq!(
-            tasklib_duration,
-            Duration {
-                seconds: 50,
-                ..Default::default()
-            }
-        );
+        assert_eq!(tasklib_duration, Duration::seconds(50));
     }
     #[test]
     fn test_udas() {
@@ -1500,9 +1133,8 @@ mod tests {
 
     #[test]
     fn test_builder() {
-
-        use chrono::TimeZone;
         use chrono::ParseError;
+        use chrono::TimeZone;
 
         /// str -> DateTime<Utc>
         ///
@@ -1532,4 +1164,5 @@ mod tests {
 pub mod prelude {
     pub use super::Task;
     pub use super::TaskBuilder;
+    pub use crate::duration::Duration;
 }
