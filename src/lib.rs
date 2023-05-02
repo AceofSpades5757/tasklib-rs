@@ -485,6 +485,7 @@ impl FromStr for Duration {
             r"((?P<seconds>\d+)S)?)?",
         ))
         .expect("valid regex");
+        dbg!(s);
         let captures = re.captures(s).expect("valid duration string for capture");
 
         let years = if let Some(years) = captures.name("years") {
@@ -1014,7 +1015,7 @@ mod udas {
     mod tests {
         use super::*;
         #[test]
-        fn test() {
+        fn basic_uda() {
             let uda_1 = Uda::String {
                 name: "my_uda".to_string(),
                 value: "my_value".to_string(),
@@ -1041,7 +1042,7 @@ mod udas {
 mod tests {
     use super::*;
     #[test]
-    fn serialize_durations() {
+    fn serialize_durations_iso_8601() {
         assert_eq!(
             "P3D".parse::<Duration>().unwrap(),
             Duration {
@@ -1196,6 +1197,11 @@ mod tests {
                 ..Default::default()
             }
         );
+    }
+    #[test]
+    fn serialize_durations() {
+        // Test other types of durations
+        todo!()
     }
     #[test]
     fn deserialize_durations() {
