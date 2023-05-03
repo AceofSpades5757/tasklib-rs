@@ -323,8 +323,16 @@ impl Task {
     pub fn from_reader(reader: impl Read) -> Result<Self, serde_json::Error> {
         serde_json::from_reader(reader)
     }
-    pub fn from_stdin() -> Result<Self, serde_json::Error> {
-        Self::from_reader(io::stdin())
+    /// Reads JSON from stdin and parses it into a Task.
+    ///
+    /// Only takes the first line of input.
+    pub fn from_stdin() -> Result<Self, io::Error> {
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        match serde_json::from_str(&input) {
+            Ok(task) => Ok(task),
+            Err(e) => Err(io::Error::new(io::ErrorKind::Other, e)),
+        }
     }
 }
 
