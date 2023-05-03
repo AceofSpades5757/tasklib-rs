@@ -1,7 +1,7 @@
 //! Minimal example using `tasklib`.
 //!
 //! ```rust
-//! use tasklib::Task;
+//! use tasklib::prelude::*;
 //!
 //! let json = r#"
 //! {
@@ -25,10 +25,21 @@
 //! // Getting a String from your Serialized Task
 //! let task_str: String = task.into();
 //! ```
+//!
+//! Example getting task from stdin and writing to stdout.
+//!
+//! ```should_panic rust
+//! use tasklib::prelude::*;
+//!
+//! // Getting a Task from stdin
+//! let task: Task = Task::from_stdin().expect("read task from stdin as JSON");
+//! // Writing a Task to stdout, as JSON
+//! task.to_stdout().expect("write task to stdout as JSON");
+//! ```
 
 use std::collections::HashMap;
 use std::fmt;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::str::FromStr;
 use std::string::ToString;
 use uuid::Uuid;
@@ -307,10 +318,33 @@ impl Task {
     }
 }
 
+/// Constructors
+impl Task {
+    pub fn from_reader(reader: impl Read) -> Result<Self, serde_json::Error> {
+        serde_json::from_reader(reader)
+    }
+    pub fn from_stdin() -> Result<Self, serde_json::Error> {
+        Self::from_reader(io::stdin())
+    }
+}
+
 /// Conversion Methods
 impl Task {
-    pub fn to_json(&self) -> String {
+    /// Convert Task to JSON object.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap()
+    }
+    /// Convert Task to JSON string.
+    pub fn to_json_string(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+    /// Write JSON representation of Task to handle.
+    pub fn to_writer(&self, writer: impl Write) -> Result<(), serde_json::Error> {
+        serde_json::to_writer(writer, self)
+    }
+    /// Write JSON representation of Task to stdout.
+    pub fn to_stdout(&self) -> Result<(), serde_json::Error> {
+        self.to_writer(io::stdout())
     }
 }
 
@@ -319,17 +353,7 @@ impl Task {
 /// Uses JSON as this is the most common use case for converting a Task to a string.
 impl ToString for Task {
     fn to_string(&self) -> String {
-        self.to_json()
-    }
-}
-
-/// Constructors
-impl Task {
-    fn from_reader(reader: impl Read) -> Result<Self, serde_json::Error> {
-        serde_json::from_reader(reader)
-    }
-    fn from_stdin() -> Result<Self, serde_json::Error> {
-        Self::from_reader(io::stdin())
+        self.to_json_string()
     }
 }
 
@@ -767,6 +791,8 @@ mod udas {
     }
 
     impl Uda {
+        // This type isn't yet implemented and may be deprecated
+        #[allow(dead_code)]
         /// Get the type of the UDA as a string
         pub fn r#type(&self) -> String {
             match self {
@@ -1198,4 +1224,5 @@ pub mod prelude {
     pub use super::Task;
     pub use super::TaskBuilder;
     pub use crate::duration::Duration;
+    pub use crate::udas::UdaValue;
 }
