@@ -134,7 +134,7 @@ fn tw_dt_to_str_opt_se<S: Serializer>(dt: &Option<DateTime<Utc>>, s: S) -> Resul
 /// See all columns using `task columns` and `task _columns`.
 ///
 /// UDAs will only deserialize to a string or numeric type. Durations and dates will be parsed to a string.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Task {
     /// Task ID
     ///
@@ -339,12 +339,15 @@ impl Task {
         serde_json::to_string(self).unwrap()
     }
     /// Write JSON representation of Task to handle.
-    pub fn to_writer(&self, writer: impl Write) -> Result<(), serde_json::Error> {
-        serde_json::to_writer(writer, self)
+    pub fn to_writer<W: Write>(&self, writer: &mut W) -> Result<(), io::Error> {
+        match writer.write(self.to_string().as_bytes()) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
     /// Write JSON representation of Task to stdout.
-    pub fn to_stdout(&self) -> Result<(), serde_json::Error> {
-        self.to_writer(io::stdout())
+    pub fn to_stdout(&self) -> Result<(), io::Error> {
+        self.to_writer(&mut io::stdout())
     }
 }
 
@@ -384,7 +387,7 @@ impl From<&str> for Task {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Annotation {
     #[serde(
         serialize_with = "tw_dt_to_str_se",
@@ -395,7 +398,7 @@ pub struct Annotation {
 }
 
 // #[derive(Debug, Serialize)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Status {
     #[serde(rename = "completed")]
     Completed,
@@ -565,12 +568,15 @@ impl TaskBuilder {
 
 mod udas {
 
+    use std::any::Any;
+
+    use chrono::{self, offset::Utc, DateTime};
+
     use super::tw_dt_to_str_opt_se;
     use super::tw_dt_to_str_se;
     use super::tw_str_to_dt_de;
     use super::tw_str_to_dt_opt_de;
     use super::Duration;
-    use chrono::{self, offset::Utc, DateTime};
 
     #[derive(Debug, Clone, PartialEq, Serialize)]
     pub enum UdaValue {
@@ -579,6 +585,42 @@ mod udas {
         #[serde(serialize_with = "tw_dt_to_str_se")]
         Date(DateTime<Utc>),
         Duration(Duration),
+    }
+
+    /// Getters (Immutable)
+    impl UdaValue {
+        /// Retrieve the inner value.
+        pub fn inner(&self) -> &dyn Any {
+            match self {
+                UdaValue::String(s) => s,
+                UdaValue::Numeric(n) => n,
+                UdaValue::Date(dt) => dt,
+                UdaValue::Duration(d) => d,
+            }
+        }
+    }
+
+    /// Conversions
+    impl UdaValue {
+        pub fn to_string(&self) -> String {
+            match self {
+                UdaValue::String(s) => s.clone(),
+                UdaValue::Numeric(n) => n.to_string(),
+                UdaValue::Date(dt) => dt.format(&crate::DATETIME_FORMAT).to_string(),
+                UdaValue::Duration(d) => d.clone().into(),
+            }
+        }
+    }
+
+    impl From<UdaValue> for String {
+        fn from(uda_value: UdaValue) -> Self {
+            match uda_value {
+                UdaValue::String(s) => s,
+                UdaValue::Numeric(n) => n.to_string(),
+                UdaValue::Date(dt) => dt.format(&crate::DATETIME_FORMAT).to_string(),
+                UdaValue::Duration(d) => d.into(),
+            }
+        }
     }
 
     impl<'de> serde::Deserialize<'de> for UdaValue {
@@ -714,7 +756,6 @@ mod udas {
     /// The label defaults to the capitalized form of the name.
     ///
     /// A string type can have a list of values.
-    //#[derive(Debug, Clone, PartialEq)]
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub enum Uda {
         String {

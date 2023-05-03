@@ -1,4 +1,6 @@
+use crate::UdaValue;
 use std::ops;
+use std::convert::TryFrom;
 use std::str::FromStr;
 use std::time;
 
@@ -162,6 +164,12 @@ impl FromStr for Duration {
     }
 }
 
+impl From<Duration> for String {
+    fn from(duration: Duration) -> Self {
+        duration.to_string()
+    }
+}
+
 impl From<time::Duration> for Duration {
     fn from(duration: time::Duration) -> Self {
         let dur = Duration {
@@ -169,6 +177,27 @@ impl From<time::Duration> for Duration {
             ..Default::default()
         };
         dur
+    }
+}
+
+/// FIXME: Add proper error return type
+impl TryFrom<UdaValue> for Duration {
+    //type Error = Box<dyn Error>;
+    type Error = ();
+    fn try_from(uda_value: UdaValue) -> Result<Self, Self::Error> {
+        match uda_value {
+            UdaValue::String(s) => {
+                match s.parse::<Duration>() {
+                    Ok(d) => Ok(d),
+                    Err(_) => Err(()),
+                }
+            }
+            UdaValue::Duration(d) => {
+                Ok(d)
+            }
+            // All other types are not supported
+            _ => Err(()),
+        }
     }
 }
 
