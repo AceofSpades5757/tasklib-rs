@@ -1,9 +1,9 @@
 use crate::UdaValue;
 use std::convert::TryFrom;
+use std::fmt;
 use std::ops;
 use std::str::FromStr;
 use std::time;
-use std::fmt;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
