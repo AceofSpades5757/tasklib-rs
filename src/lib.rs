@@ -579,20 +579,32 @@ mod udas {
     use std::any::Any;
 
     use chrono::{self, offset::Utc, DateTime};
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
     use super::tw_dt_to_str_opt_se;
     use super::tw_dt_to_str_se;
     use super::tw_str_to_dt_de;
     use super::tw_str_to_dt_opt_de;
     use super::Duration;
+    use super::DATETIME_FORMAT;
 
-    #[derive(Debug, Clone, PartialEq, Serialize)]
+    #[derive(Debug, Clone, PartialEq)]
     pub enum UdaValue {
         String(String),
         Numeric(f64),
-        #[serde(serialize_with = "tw_dt_to_str_se")]
         Date(DateTime<Utc>),
         Duration(Duration),
+    }
+
+    impl Serialize for UdaValue {
+        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            match self {
+                UdaValue::String(s) => serializer.serialize_str(s),
+                UdaValue::Numeric(n) => serializer.serialize_f64(*n),
+                UdaValue::Date(dt) => serializer.serialize_str(&dt.format(DATETIME_FORMAT).to_string()),
+                UdaValue::Duration(d) => serializer.serialize_str(&d.to_string()),
+            }
+        }
     }
 
     /// Getters (Immutable)
@@ -853,7 +865,16 @@ mod udas {
         }
     }
 
-    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    impl From<Uda> for String {
+        fn from(uda: Uda) -> Self {
+            match uda {
+                Uda::String { value, .. } => value,
+                Uda::Numeric { value, .. } => value.to_string(),
+                Uda::Date { value, .. } => value.format(&DATETIME_FORMAT).to_string(),
+                Uda::Duration { value, .. } => value.to_string(),
+            }
+        }
+    }
 
     #[derive(Debug, Clone)]
     enum Type {
@@ -937,6 +958,57 @@ mod udas {
             };
 
             assert_eq!(uda_1, uda_2);
+        }
+        #[test]
+        fn serialize() {
+            use chrono::Utc;
+            use chrono::TimeZone;
+
+            let uda_string = Uda::String {
+                name: "my_uda".to_string(),
+                value: "my_value".to_string(),
+                label: "".to_string(),
+                default: "my_default".to_string(),
+                values: vec!["my_value".to_string(), "my_value_2".to_string()],
+                coefficient: Some(1.0),
+            };
+            let expected = r#"my_value"#;
+            let actual: String = uda_string.into();
+            assert_eq!(actual, expected);
+
+            let uda_numeric = Uda::Numeric {
+                name: "my_uda".to_string(),
+                value: 1.0,
+                label: "".to_string(),
+                default: 1.0,
+                coefficient: Some(1.0),
+            };
+            let expected = r#"1"#;
+            let actual: String = uda_numeric.into();
+            assert_eq!(actual, expected);
+
+            let uda_date = Uda::Date {
+                name: "my_uda".to_string(),
+                //value: Utc.ymd(2020, 1, 1).and_hms(0, 0, 0),
+                value: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
+                label: "".to_string(),
+                default: None,
+                coefficient: Some(1.0),
+            };
+            let expected = r#"20200101T000000Z"#;
+            let actual: String = uda_date.into();
+            assert_eq!(actual, expected);
+
+            let uda_duration = Uda::Duration {
+                name: "my_uda".to_string(),
+                value: Duration::days(3),
+                label: "".to_string(),
+                default: None,
+                coefficient: Some(1.0),
+            };
+            let expected = r#"P3D"#;
+            let actual: String = uda_duration.into();
+            assert_eq!(actual, expected);
         }
     }
 }
@@ -1150,6 +1222,12 @@ mod tests {
         "#;
         let task = task_str.parse::<Task>().unwrap();
         assert_eq!(task.udas().get("elapsed").unwrap(), "PT2H");
+
+        // Check adding and retreiving udas
+        let mut task = task_str.parse::<Task>().unwrap();
+        task.udas_mut().insert("elapsed".to_string(), Duration::hours(5).into());
+        assert_eq!(task.udas().get("elapsed").unwrap().to_string(), "PT5H");
+        assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
     }
 
     #[test]
