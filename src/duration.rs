@@ -119,6 +119,22 @@ impl Duration {
     }
 }
 
+impl Duration {
+    /// Smooth values
+    ///
+    /// NOT IMPLEMENTED: Assumes 30 days in a month
+    /// For the sake of accuracy, this was not implemented.
+    ///
+    /// e.g. PT7200S -> PT2H
+    pub fn smooth(&mut self) {
+        self.minutes = self.minutes + self.seconds / 60;
+        self.hours = self.hours + self.minutes / 60;
+        self.days = self.days + self.hours / 24;
+        //self.months = self.months + self.days / 30;
+        self.years = self.years + self.months / 12;
+    }
+}
+
 impl ops::Add for Duration {
     type Output = Self;
 
@@ -169,6 +185,7 @@ impl From<Duration> for String {
 
 impl From<time::Duration> for Duration {
     fn from(duration: time::Duration) -> Self {
+        // FIXME: Smooth this
         Duration {
             seconds: duration.as_secs() as u32,
             ..Default::default()
@@ -2059,5 +2076,31 @@ mod tests {
                 + Duration::minutes(40)
                 + Duration::seconds(50)
         );
+    }
+    #[test]
+    fn zero() {
+        let input = "PT0S";
+        // Just make sure it parses
+        let _duration: Duration = input.into();
+    }
+    #[test]
+    /// Ensure converted string values are smoothed.
+    ///
+    /// e.g. Duration::seconds(7200) -> PT2H
+    fn smoothing() {
+        use chrono::{self, offset::Utc, DateTime, TimeZone};
+
+        let duration: Duration = Duration::hours(1) + Duration::hours(1);
+        let string = duration.to_string();
+        assert_eq!(&string, "PT2H");
+
+        let start: DateTime<Utc> = Utc.with_ymd_and_hms(2020, 1, 1, 12, 0, 0).unwrap();
+        let end: DateTime<Utc> = Utc.with_ymd_and_hms(2020, 1, 1, 14, 0, 0).unwrap();
+
+        let duration = end.signed_duration_since(start);
+        let mut elapsed: Duration = duration.into();
+        elapsed.smooth();
+
+        assert_eq!(&elapsed.to_string(), "PT2H");
     }
 }

@@ -646,6 +646,18 @@ mod udas {
         }
     }
 
+    impl From<String> for UdaValue {
+        fn from(s: String) -> Self {
+            UdaValue::String(s)
+        }
+    }
+
+    impl From<&str> for UdaValue {
+        fn from(s: &str) -> Self {
+            UdaValue::String(s.to_string())
+        }
+    }
+
     impl<'de> serde::Deserialize<'de> for UdaValue {
         fn deserialize<D>(deserializer: D) -> Result<UdaValue, D::Error>
         where
@@ -1207,6 +1219,8 @@ mod tests {
     }
     #[test]
     fn test_udas() {
+        use chrono::TimeZone;
+
         // Uses elapsed, a duration type UDA
         let task_str = r#"
         {
@@ -1235,6 +1249,39 @@ mod tests {
             .insert("elapsed".to_string(), Duration::hours(5).into());
         assert_eq!(task.udas().get("elapsed").unwrap().to_string(), "PT5H");
         assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
+
+        // Check string type
+        task.udas_mut()
+            .insert("elapsed".to_string(), "5".into());
+        assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"5"}"#.to_string());
+        assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"5"}"#.to_string());
+
+        // Check date type
+        task.udas_mut()
+            .insert(
+                "elapsed".to_string(),
+                UdaValue::Date(Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap())
+            );
+        assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"20200101T000000Z"}"#.to_string());
+        assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"20200101T000000Z"}"#.to_string());
+
+        // Check duration type
+        task.udas_mut()
+            .insert(
+                "elapsed".to_string(),
+                UdaValue::Duration(Duration::hours(5))
+            );
+        assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
+        assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
+
+        // Check numeric type
+        task.udas_mut()
+            .insert(
+                "elapsed".to_string(),
+                UdaValue::Numeric(5.0)
+            );
+        assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":5.0}"#.to_string());
+        assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":5.0}"#.to_string());
     }
 
     #[test]
