@@ -118,7 +118,7 @@ where
 ///
 /// DateTime<Utc> -> String
 fn tw_dt_to_str_se<S: Serializer>(dt: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error> {
-    s.serialize_str(&dt.format(&DATETIME_FORMAT).to_string())
+    s.serialize_str(&dt.format(DATETIME_FORMAT).to_string())
 }
 
 /// Taskwarrior str to Option<DateTime<Utc>> serializer
@@ -126,7 +126,7 @@ fn tw_dt_to_str_se<S: Serializer>(dt: &DateTime<Utc>, s: S) -> Result<S::Ok, S::
 /// Option<DateTime<Utc>> -> String
 fn tw_dt_to_str_opt_se<S: Serializer>(dt: &Option<DateTime<Utc>>, s: S) -> Result<S::Ok, S::Error> {
     match dt {
-        Some(dt) => s.serialize_str(&dt.format(&DATETIME_FORMAT).to_string()),
+        Some(dt) => s.serialize_str(&dt.format(DATETIME_FORMAT).to_string()),
         None => s.serialize_str(""),
     }
 }
@@ -601,7 +601,9 @@ mod udas {
             match self {
                 UdaValue::String(s) => serializer.serialize_str(s),
                 UdaValue::Numeric(n) => serializer.serialize_f64(*n),
-                UdaValue::Date(dt) => serializer.serialize_str(&dt.format(DATETIME_FORMAT).to_string()),
+                UdaValue::Date(dt) => {
+                    serializer.serialize_str(&dt.format(DATETIME_FORMAT).to_string())
+                }
                 UdaValue::Duration(d) => serializer.serialize_str(&d.to_string()),
             }
         }
@@ -626,7 +628,7 @@ mod udas {
             match self {
                 UdaValue::String(s) => s.clone(),
                 UdaValue::Numeric(n) => n.to_string(),
-                UdaValue::Date(dt) => dt.format(&crate::DATETIME_FORMAT).to_string(),
+                UdaValue::Date(dt) => dt.format(crate::DATETIME_FORMAT).to_string(),
                 UdaValue::Duration(d) => d.clone().into(),
             }
         }
@@ -637,7 +639,7 @@ mod udas {
             match uda_value {
                 UdaValue::String(s) => s,
                 UdaValue::Numeric(n) => n.to_string(),
-                UdaValue::Date(dt) => dt.format(&crate::DATETIME_FORMAT).to_string(),
+                UdaValue::Date(dt) => dt.format(crate::DATETIME_FORMAT).to_string(),
                 UdaValue::Duration(d) => d.into(),
             }
         }
@@ -870,7 +872,7 @@ mod udas {
             match uda {
                 Uda::String { value, .. } => value,
                 Uda::Numeric { value, .. } => value.to_string(),
-                Uda::Date { value, .. } => value.format(&DATETIME_FORMAT).to_string(),
+                Uda::Date { value, .. } => value.format(DATETIME_FORMAT).to_string(),
                 Uda::Duration { value, .. } => value.to_string(),
             }
         }
@@ -961,8 +963,8 @@ mod udas {
         }
         #[test]
         fn serialize() {
-            use chrono::Utc;
             use chrono::TimeZone;
+            use chrono::Utc;
 
             let uda_string = Uda::String {
                 name: "my_uda".to_string(),
@@ -1225,7 +1227,8 @@ mod tests {
 
         // Check adding and retreiving udas
         let mut task = task_str.parse::<Task>().unwrap();
-        task.udas_mut().insert("elapsed".to_string(), Duration::hours(5).into());
+        task.udas_mut()
+            .insert("elapsed".to_string(), Duration::hours(5).into());
         assert_eq!(task.udas().get("elapsed").unwrap().to_string(), "PT5H");
         assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
     }

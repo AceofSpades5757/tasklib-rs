@@ -1,6 +1,6 @@
 use crate::UdaValue;
-use std::ops;
 use std::convert::TryFrom;
+use std::ops;
 use std::str::FromStr;
 use std::time;
 
@@ -79,7 +79,7 @@ impl Duration {
 impl Duration {
     pub fn to_string(&self) -> String {
         let mut buffer = String::new();
-        buffer.push_str("P");
+        buffer.push('P');
         if self.years > 0 {
             buffer.push_str(&format!("{}Y", self.years))
         }
@@ -90,7 +90,7 @@ impl Duration {
             buffer.push_str(&format!("{}D", self.days))
         }
         if self.hours > 0 || self.minutes > 0 || self.seconds > 0 {
-            buffer.push_str("T")
+            buffer.push('T')
         }
         if self.hours > 0 {
             buffer.push_str(&format!("{}H", self.hours))
@@ -172,11 +172,10 @@ impl From<Duration> for String {
 
 impl From<time::Duration> for Duration {
     fn from(duration: time::Duration) -> Self {
-        let dur = Duration {
+        Duration {
             seconds: duration.as_secs() as u32,
             ..Default::default()
-        };
-        dur
+        }
     }
 }
 
@@ -186,15 +185,11 @@ impl TryFrom<UdaValue> for Duration {
     type Error = ();
     fn try_from(uda_value: UdaValue) -> Result<Self, Self::Error> {
         match uda_value {
-            UdaValue::String(s) => {
-                match s.parse::<Duration>() {
-                    Ok(d) => Ok(d),
-                    Err(_) => Err(()),
-                }
-            }
-            UdaValue::Duration(d) => {
-                Ok(d)
-            }
+            UdaValue::String(s) => match s.parse::<Duration>() {
+                Ok(d) => Ok(d),
+                Err(_) => Err(()),
+            },
+            UdaValue::Duration(d) => Ok(d),
             // All other types are not supported
             _ => Err(()),
         }
@@ -203,11 +198,10 @@ impl TryFrom<UdaValue> for Duration {
 
 impl From<chrono::Duration> for Duration {
     fn from(duration: chrono::Duration) -> Self {
-        let dur = Duration {
+        Duration {
             seconds: duration.num_seconds() as u32,
             ..Default::default()
-        };
-        dur
+        }
     }
 }
 

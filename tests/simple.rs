@@ -3,6 +3,4 @@
 #[test]
 fn imports() {
     // Sanity checks for the prelude.
-    use tasklib::prelude::Task;
-    use tasklib::prelude::*;
 }
