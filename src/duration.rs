@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 use std::ops;
 use std::str::FromStr;
 use std::time;
+use std::fmt;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -69,15 +70,11 @@ impl Duration {
             ..Default::default()
         }
     }
-    pub fn from_str(s: &str) -> Result<Self, String> {
-        let (_, duration) = parse_duration(s).map_err(|e| format!("{}", e))?;
-        Ok(duration)
-    }
 }
 
 /// Conversion Methods
-impl Duration {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Duration {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut buffer = String::new();
         buffer.push('P');
         if self.years > 0 {
@@ -101,7 +98,7 @@ impl Duration {
         if self.seconds > 0 {
             buffer.push_str(&format!("{}S", self.seconds))
         }
-        buffer
+        write!(f, "{}", buffer)
     }
 }
 

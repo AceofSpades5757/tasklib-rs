@@ -577,6 +577,7 @@ impl TaskBuilder {
 mod udas {
 
     use std::any::Any;
+    use std::fmt;
 
     use chrono::{self, offset::Utc, DateTime};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -622,15 +623,15 @@ mod udas {
         }
     }
 
-    /// Conversions
-    impl UdaValue {
-        pub fn to_string(&self) -> String {
-            match self {
+    impl fmt::Display for UdaValue {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let buffer: String = match self {
                 UdaValue::String(s) => s.clone(),
                 UdaValue::Numeric(n) => n.to_string(),
                 UdaValue::Date(dt) => dt.format(crate::DATETIME_FORMAT).to_string(),
                 UdaValue::Duration(d) => d.clone().into(),
-            }
+            };
+            write!(f, "{}", buffer)
         }
     }
 
@@ -892,10 +893,13 @@ mod udas {
         Duration,
     }
 
-    impl Type {
-        fn to_string(&self) -> String {
-            self.to_str().to_string()
+    impl fmt::Display for Type {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "{}", self.to_str())
         }
+    }
+
+    impl Type {
         fn to_str(&self) -> &str {
             match self {
                 Type::String => "string",
