@@ -98,7 +98,7 @@ impl fmt::Display for Duration {
         if self.seconds > 0 {
             buffer.push_str(&format!("{}S", self.seconds))
         }
-        write!(f, "{}", buffer)
+        write!(f, "{buffer}")
     }
 }
 
@@ -127,11 +127,19 @@ impl Duration {
     ///
     /// e.g. PT7200S -> PT2H
     pub fn smooth(&mut self) {
-        self.minutes = self.minutes + self.seconds / 60;
-        self.hours = self.hours + self.minutes / 60;
-        self.days = self.days + self.hours / 24;
+        self.minutes += self.seconds / 60;
+        self.seconds %= 60;
+
+        self.hours += self.minutes / 60;
+        self.minutes %= 60;
+
+        self.days += self.hours / 24;
+        self.days %= 24;
+
         //self.months = self.months + self.days / 30;
-        self.years = self.years + self.months / 12;
+        //self.months = self.days % 30;
+
+        self.years += self.months / 12;
     }
 }
 
@@ -172,7 +180,7 @@ impl FromStr for Duration {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (_, duration) = parse_duration(s).map_err(|e| format!("{}", e))?;
+        let (_, duration) = parse_duration(s).map_err(|e| format!("{e}"))?;
         Ok(duration)
     }
 }

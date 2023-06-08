@@ -597,6 +597,61 @@ mod udas {
         Duration(Duration),
     }
 
+    use std::error::Error;
+
+    #[derive(Debug)]
+    struct ParseError(String);
+
+    impl std::fmt::Display for ParseError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl Error for ParseError {}
+
+    /// Converters
+    impl UdaValue {
+        pub fn as_uda_string(&self) -> Result<Self, Box<dyn Error>> {
+            match self {
+                UdaValue::String(_) => Ok(self.clone()),
+                UdaValue::Numeric(n) => Ok(Self::String(n.to_string())),
+                UdaValue::Date(dt) => Ok(Self::String(dt.format(DATETIME_FORMAT).to_string())),
+                UdaValue::Duration(d) => Ok(Self::String(d.to_string())),
+            }
+        }
+        pub fn as_uda_numeric(&self) -> Result<Self, Box<dyn Error>> {
+            match self {
+                UdaValue::String(s) => Ok(Self::Numeric(s.parse::<f64>()?)),
+                UdaValue::Numeric(_) => Ok(self.clone()),
+                UdaValue::Date(_) => Err(Box::new(ParseError("cannot parse DateTime to a numeric value".to_string()))),
+                UdaValue::Duration(_) => Err(Box::new(ParseError("cannot parse Duration to a numeric value".to_string()))),
+            }
+        }
+        pub fn as_uda_date(&self) -> Result<Self, Box<dyn Error>> {
+            match self {
+                UdaValue::String(s) => Ok(Self::Date(
+                    DateTime::<Utc>::from_utc(
+                        chrono::NaiveDateTime::parse_from_str(s, DATETIME_FORMAT)
+                            .expect("string turned into datetime"),
+                        Utc,
+                    )
+                )),
+                UdaValue::Numeric(_) => Err(Box::new(ParseError("cannot convert number to date".to_string()))),
+                UdaValue::Date(_) => Ok(self.clone()),
+                UdaValue::Duration(_) => Err(Box::new(ParseError("cannot convert duration to date".to_string()))),
+            }
+        }
+        pub fn as_uda_duration(&self) -> Result<Self, Box<dyn Error>> {
+            match self {
+                UdaValue::String(s) => Ok(Self::Duration(s.parse::<Duration>()?)),
+                UdaValue::Numeric(_) => Err(Box::new(ParseError("cannot convert number to duration".to_string()))),
+                UdaValue::Date(_) => Err(Box::new(ParseError("cannot convert date to duration".to_string()))),
+                UdaValue::Duration(_) => Ok(self.clone()),
+            }
+        }
+    }
+
     impl Serialize for UdaValue {
         fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
             match self {
@@ -631,7 +686,7 @@ mod udas {
                 UdaValue::Date(dt) => dt.format(crate::DATETIME_FORMAT).to_string(),
                 UdaValue::Duration(d) => d.clone().into(),
             };
-            write!(f, "{}", buffer)
+            write!(f, "{buffer}")
         }
     }
 
@@ -926,7 +981,7 @@ mod udas {
                 "numeric" => Ok(Type::Numeric),
                 "date" => Ok(Type::Date),
                 "duration" => Ok(Type::Duration),
-                _ => Err(format!("invalid type: {}", s)),
+                _ => Err(format!("invalid type: {s}")),
             }
         }
         fn from_string(s: String) -> Result<Type, String> {
@@ -1398,6 +1453,18 @@ mod tests {
         let task_json = serde_json::to_string(&task).unwrap();
         let expected_task_json = r#"{"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","entry":"20220131T083000Z","modified":"20220131T083000Z","status":"pending"}"#;
         assert_eq!(task_json, expected_task_json);
+    }
+    #[test]
+    fn uda_value_converters() {
+        let uda_value = UdaValue::String("5.0".to_string());
+        uda_value.as_uda_string().expect("uda value string to string conversion");
+        uda_value.as_uda_numeric().expect("uda value string to numeric conversion");
+
+        let uda_value = UdaValue::String("20220131T083000Z".to_string());
+        uda_value.as_uda_date().expect("uda value string to date conversion");
+
+        let uda_value = UdaValue::String("PT2H".to_string());
+        uda_value.as_uda_duration().expect("uda value string to duration conversion");
     }
 }
 
