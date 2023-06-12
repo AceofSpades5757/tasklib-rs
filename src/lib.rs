@@ -199,7 +199,7 @@ pub struct Task {
     /// Type: numeric
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    imask: Option<i64>,
+    imask: Option<f64>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     mask: Option<String>,
@@ -438,7 +438,7 @@ pub struct TaskBuilder {
     scheduled: Option<DateTime<Utc>>,
     recur: Option<Duration>,
     mask: Option<String>,
-    imask: Option<i64>,
+    imask: Option<f64>,
     parent: Option<Uuid>,
     depends: Option<Vec<Uuid>>,
     urgency: Option<f64>,
@@ -522,7 +522,7 @@ impl TaskBuilder {
         self.mask = Some(mask);
         self
     }
-    pub fn imask(mut self, imask: i64) -> Self {
+    pub fn imask(mut self, imask: f64) -> Self {
         self.imask = Some(imask);
         self
     }
