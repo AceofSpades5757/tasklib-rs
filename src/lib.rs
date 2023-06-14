@@ -28,13 +28,31 @@
 //!
 //! Example getting task from stdin and writing to stdout.
 //!
-//! ```should_panic rust
+//! ```rust should_panic
 //! use tasklib::prelude::*;
 //!
 //! // Getting a Task from stdin
 //! let task: Task = Task::from_stdin().expect("read task from stdin as JSON");
 //! // Writing a Task to stdout, as JSON
 //! task.to_stdout().expect("write task to stdout as JSON");
+//! ```
+//!
+//! Example getting command line arguments.
+//!
+//! ```rust no_run
+//! use std::env;
+//! use tasklib::prelude::*;
+//!
+//! // Get the command line arguments.
+//! let args: CliArguments = CliArguments::from(env::args());
+//!
+//! args.hook(); // PathBuf::from("/home/.task/hooks/on-add.tsk")
+//! args.api_version(); // ApiVersion::V2
+//! args.arguments(); // String::from("task add Task to do.")
+//! args.command(); // Command::Add
+//! args.rc_file(); // PathBuf::from("/home/.taskrc")
+//! args.data_location(); // PathBuf::from("/home/.task")
+//! args.task_version(); // "2.6.3"
 //! ```
 
 use std::collections::HashMap;
@@ -624,29 +642,39 @@ mod udas {
             match self {
                 UdaValue::String(s) => Ok(Self::Numeric(s.parse::<f64>()?)),
                 UdaValue::Numeric(_) => Ok(self.clone()),
-                UdaValue::Date(_) => Err(Box::new(ParseError("cannot parse DateTime to a numeric value".to_string()))),
-                UdaValue::Duration(_) => Err(Box::new(ParseError("cannot parse Duration to a numeric value".to_string()))),
+                UdaValue::Date(_) => Err(Box::new(ParseError(
+                    "cannot parse DateTime to a numeric value".to_string(),
+                ))),
+                UdaValue::Duration(_) => Err(Box::new(ParseError(
+                    "cannot parse Duration to a numeric value".to_string(),
+                ))),
             }
         }
         pub fn as_uda_date(&self) -> Result<Self, Box<dyn Error>> {
             match self {
-                UdaValue::String(s) => Ok(Self::Date(
-                    DateTime::<Utc>::from_utc(
-                        chrono::NaiveDateTime::parse_from_str(s, DATETIME_FORMAT)
-                            .expect("string turned into datetime"),
-                        Utc,
-                    )
-                )),
-                UdaValue::Numeric(_) => Err(Box::new(ParseError("cannot convert number to date".to_string()))),
+                UdaValue::String(s) => Ok(Self::Date(DateTime::<Utc>::from_utc(
+                    chrono::NaiveDateTime::parse_from_str(s, DATETIME_FORMAT)
+                        .expect("string turned into datetime"),
+                    Utc,
+                ))),
+                UdaValue::Numeric(_) => Err(Box::new(ParseError(
+                    "cannot convert number to date".to_string(),
+                ))),
                 UdaValue::Date(_) => Ok(self.clone()),
-                UdaValue::Duration(_) => Err(Box::new(ParseError("cannot convert duration to date".to_string()))),
+                UdaValue::Duration(_) => Err(Box::new(ParseError(
+                    "cannot convert duration to date".to_string(),
+                ))),
             }
         }
         pub fn as_uda_duration(&self) -> Result<Self, Box<dyn Error>> {
             match self {
                 UdaValue::String(s) => Ok(Self::Duration(s.parse::<Duration>()?)),
-                UdaValue::Numeric(_) => Err(Box::new(ParseError("cannot convert number to duration".to_string()))),
-                UdaValue::Date(_) => Err(Box::new(ParseError("cannot convert date to duration".to_string()))),
+                UdaValue::Numeric(_) => Err(Box::new(ParseError(
+                    "cannot convert number to duration".to_string(),
+                ))),
+                UdaValue::Date(_) => Err(Box::new(ParseError(
+                    "cannot convert date to duration".to_string(),
+                ))),
                 UdaValue::Duration(_) => Ok(self.clone()),
             }
         }
@@ -1086,6 +1114,327 @@ mod udas {
     }
 }
 
+/// This module contains the logic for the CLI arguments given during a hook.
+mod cli {
+
+    use std::env;
+    use std::path::PathBuf;
+    use std::str::FromStr;
+
+    /// // Get the command line arguments.
+    #[derive(Debug)]
+    pub struct CliArguments {
+        hook: PathBuf,
+        api: ApiVersion,
+        args: String,
+        command: Command,
+        rc_file: PathBuf,
+        data_location: PathBuf,
+        task_version: Version,
+    }
+
+    /// Getters (Immutable)
+    impl CliArguments {
+        pub fn hook(&self) -> &PathBuf {
+            &self.hook
+        }
+        pub fn api_version(&self) -> &ApiVersion {
+            &self.api
+        }
+        pub fn arguments(&self) -> &String {
+            &self.args
+        }
+        pub fn command(&self) -> &Command {
+            &self.command
+        }
+        pub fn rc_file(&self) -> &PathBuf {
+            &self.rc_file
+        }
+        pub fn data_location(&self) -> &PathBuf {
+            &self.data_location
+        }
+        pub fn task_version(&self) -> &Version {
+            &self.task_version
+        }
+    }
+
+    impl CliArguments {
+        /// Get the command line arguments from the environemnt.
+        ///
+        /// This is given to the command line as arguments.
+        pub fn from_env() -> Result<Self, String> {
+            let args: Vec<String> = env::args().collect();
+            Self::from_vec(args)
+        }
+    }
+
+    impl From<Vec<String>> for CliArguments {
+        fn from(vec: Vec<String>) -> Self {
+            Self::from_vec(vec).unwrap()
+        }
+    }
+
+    impl From<env::Args> for CliArguments {
+        fn from(args: env::Args) -> Self {
+            Self::from_vec(args.collect()).unwrap()
+        }
+    }
+
+    impl CliArguments {
+        /// e.g. vec!["./.task/hooks/on-add_noop.py", "api:2", "args:task add My task", "command:add", "rc:./.taskrc", "data:./.task", "version:2.6.2"]
+        pub fn from_vec(vec: Vec<String>) -> Result<Self, String> {
+            let mut args = vec.into_iter();
+
+            let hook = args
+                .next()
+                .ok_or_else(|| "Missing hook argument".to_string())?;
+            let api = args
+                .next()
+                .ok_or_else(|| "Missing api argument".to_string())?
+                .split(':')
+                .nth(1)
+                .ok_or_else(|| "Missing api version".to_string())?
+                .parse::<ApiVersion>()?;
+            let task_args = args
+                .next()
+                .ok_or_else(|| "Missing args argument".to_string())?
+                .split(':')
+                .nth(1)
+                .ok_or_else(|| "Missing args".to_string())?
+                .to_string();
+            let command = args
+                .next()
+                .ok_or_else(|| "Missing command argument".to_string())?
+                .split(':')
+                .nth(1)
+                .ok_or_else(|| "Missing command".to_string())?
+                .parse::<Command>()?;
+            let rc_file = args
+                .next()
+                .ok_or_else(|| "Missing rc argument".to_string())?
+                .split(':')
+                .nth(1)
+                .ok_or_else(|| "Missing rc file".to_string())?
+                .parse::<PathBuf>()
+                .map_err(|e| format!("Invalid rc file: {}", e))?;
+            let data_location = args
+                .next()
+                .ok_or_else(|| "Missing data argument".to_string())?
+                .split(':')
+                .nth(1)
+                .ok_or_else(|| "Missing data location".to_string())?
+                .parse::<PathBuf>()
+                .map_err(|e| format!("Invalid data location: {}", e))?;
+            let task_version = args
+                .next()
+                .ok_or_else(|| "Missing version argument".to_string())?
+                .split(':')
+                .nth(1)
+                .ok_or_else(|| "Missing version".to_string())?
+                .parse::<Version>()
+                .map_err(|e| format!("Invalid version: {}", e))?;
+
+            Ok(Self {
+                hook: PathBuf::from(hook),
+                api,
+                args: task_args,
+                command,
+                rc_file,
+                data_location,
+                task_version,
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    pub enum ApiVersion {
+        V1,
+        V2,
+        /// An unknown API version.
+        ///
+        /// Can include a message.
+        Unknown(Option<String>),
+    }
+
+    impl FromStr for ApiVersion {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "1" => Ok(ApiVersion::V1),
+                "2" => Ok(ApiVersion::V2),
+                _ => Ok(ApiVersion::Unknown(Some(s.to_string()))),
+            }
+        }
+    }
+
+    /// <https://taskwarrior.org/docs/commands/>
+    #[derive(Debug)]
+    pub enum Command {
+        /// Add a new task
+        Add,
+        /// Add an annotation to a task
+        Annotate,
+        /// Append words to a task description
+        Append,
+        /// 2.4.0 Expression calculator
+        Calc,
+        /// Modify configuration settings
+        Config,
+        /// Manage contexts
+        Context,
+        /// Count the tasks matching a filter
+        Count,
+        /// Mark a task as deleted
+        Delete,
+        /// Remove an annotation from a task
+        Denotate,
+        /// Complete a task
+        Done,
+        /// Clone an existing task
+        Duplicate,
+        /// Launch your text editor to modify a task
+        Edit,
+        /// Execute an external command
+        Execute,
+        /// Export tasks in JSON format
+        Export,
+        /// Show high-level help, a cheat-sheet
+        Help,
+        /// Import tasks in JSON form
+        Import,
+        /// Record an already-completed task
+        Log,
+        /// Show the Taskwarrior logo
+        Logo,
+        /// Modify one or more tasks
+        Modify,
+        /// Prepend words to a task description
+        Prepend,
+        /// 2.6.0 Completely removes tasks, rather than change status to deleted
+        Purge,
+        /// Start working on a task, make active
+        Start,
+        /// Stop working on a task, no longer active
+        Stop,
+        /// Syncs tasks with Taskserver
+        Synchronize,
+        /// Revert last change
+        Undo,
+        /// Version details and copyright
+        Version,
+        /// An unknown command.
+        ///
+        /// Can include a message.
+        Unknown(Option<String>),
+    }
+
+    impl FromStr for Command {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "add" => Ok(Command::Add),
+                "annotate" => Ok(Command::Annotate),
+                "append" => Ok(Command::Append),
+                "calc" => Ok(Command::Calc),
+                "config" => Ok(Command::Config),
+                "context" => Ok(Command::Context),
+                "count" => Ok(Command::Count),
+                "delete" => Ok(Command::Delete),
+                "denotate" => Ok(Command::Denotate),
+                "done" => Ok(Command::Done),
+                "duplicate" => Ok(Command::Duplicate),
+                "edit" => Ok(Command::Edit),
+                "execute" => Ok(Command::Execute),
+                "export" => Ok(Command::Export),
+                "help" => Ok(Command::Help),
+                "import" => Ok(Command::Import),
+                "log" => Ok(Command::Log),
+                "logo" => Ok(Command::Logo),
+                "modify" => Ok(Command::Modify),
+                "prepend" => Ok(Command::Prepend),
+                "purge" => Ok(Command::Purge),
+                "start" => Ok(Command::Start),
+                "stop" => Ok(Command::Stop),
+                "sync" => Ok(Command::Synchronize),
+                "undo" => Ok(Command::Undo),
+                "version" => Ok(Command::Version),
+                _ => Ok(Command::Unknown(Some(s.to_string()))),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Version {
+        major: u32,
+        minor: u32,
+        patch: u32,
+    }
+
+    /// Getters (Immutable)
+    impl Version {
+        pub fn major(&self) -> u32 {
+            self.major
+        }
+        pub fn minor(&self) -> u32 {
+            self.minor
+        }
+        pub fn patch(&self) -> u32 {
+            self.patch
+        }
+    }
+
+    impl FromStr for Version {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let mut parts = s.split('.');
+            let major = parts
+                .next()
+                .ok_or_else(|| "missing major version".to_string())?
+                .parse::<u32>()
+                .map_err(|e| format!("invalid major version: {}", e))?;
+            let minor = parts
+                .next()
+                .ok_or_else(|| "missing minor version".to_string())?
+                .parse::<u32>()
+                .map_err(|e| format!("invalid minor version: {}", e))?;
+            let patch = parts
+                .next()
+                .ok_or_else(|| "missing patch version".to_string())?
+                .parse::<u32>()
+                .map_err(|e| format!("invalid patch version: {}", e))?;
+            Ok(Version {
+                major,
+                minor,
+                patch,
+            })
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn args_to_cliargs() {
+            let args = vec![
+                "./.task/hooks/on-add_noop.py",
+                "api:2",
+                "args:task add My task",
+                "command:add",
+                "rc:./.taskrc",
+                "data:./.task",
+                "version:2.6.2",
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+            let _cli_args = CliArguments::from(args);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1306,35 +1655,29 @@ mod tests {
         assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
 
         // Check string type
-        task.udas_mut()
-            .insert("elapsed".to_string(), "5".into());
+        task.udas_mut().insert("elapsed".to_string(), "5".into());
         assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"5"}"#.to_string());
         assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"5"}"#.to_string());
 
         // Check date type
-        task.udas_mut()
-            .insert(
-                "elapsed".to_string(),
-                UdaValue::Date(Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap())
-            );
+        task.udas_mut().insert(
+            "elapsed".to_string(),
+            UdaValue::Date(Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()),
+        );
         assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"20200101T000000Z"}"#.to_string());
         assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"20200101T000000Z"}"#.to_string());
 
         // Check duration type
-        task.udas_mut()
-            .insert(
-                "elapsed".to_string(),
-                UdaValue::Duration(Duration::hours(5))
-            );
+        task.udas_mut().insert(
+            "elapsed".to_string(),
+            UdaValue::Duration(Duration::hours(5)),
+        );
         assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
         assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":"PT5H"}"#.to_string());
 
         // Check numeric type
         task.udas_mut()
-            .insert(
-                "elapsed".to_string(),
-                UdaValue::Numeric(5.0)
-            );
+            .insert("elapsed".to_string(), UdaValue::Numeric(5.0));
         assert_eq!(task.to_string(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":5.0}"#.to_string());
         assert_eq!(serde_json::to_string(&task).unwrap(), r#"{"id":0,"uuid":"d67fce70-c0b6-43c5-affc-a21e64567d40","description":"Task to do.","start":"20220131T083000Z","end":"20220131T083000Z","entry":"20220131T083000Z","modified":"20220131T083000Z","project":"Daily","status":"pending","tags":["WORK"],"urgency":9.91234,"elapsed":5.0}"#.to_string());
     }
@@ -1457,20 +1800,29 @@ mod tests {
     #[test]
     fn uda_value_converters() {
         let uda_value = UdaValue::String("5.0".to_string());
-        uda_value.as_uda_string().expect("uda value string to string conversion");
-        uda_value.as_uda_numeric().expect("uda value string to numeric conversion");
+        uda_value
+            .as_uda_string()
+            .expect("uda value string to string conversion");
+        uda_value
+            .as_uda_numeric()
+            .expect("uda value string to numeric conversion");
 
         let uda_value = UdaValue::String("20220131T083000Z".to_string());
-        uda_value.as_uda_date().expect("uda value string to date conversion");
+        uda_value
+            .as_uda_date()
+            .expect("uda value string to date conversion");
 
         let uda_value = UdaValue::String("PT2H".to_string());
-        uda_value.as_uda_duration().expect("uda value string to duration conversion");
+        uda_value
+            .as_uda_duration()
+            .expect("uda value string to duration conversion");
     }
 }
 
 pub mod prelude {
-    pub use super::Task;
-    pub use super::TaskBuilder;
+    pub use crate::cli::CliArguments;
     pub use crate::duration::Duration;
     pub use crate::udas::UdaValue;
+    pub use crate::Task;
+    pub use crate::TaskBuilder;
 }
