@@ -16,6 +16,17 @@ use nom::sequence::tuple;
 use nom::IResult;
 use serde::{Deserialize, Serialize};
 
+/// Special duration types.
+///
+/// * weekdays
+#[derive(Debug, Default, Clone)]
+enum Special {
+    /// Represented by "weekdays" in Taskwarrior's `recur` attribute.
+    Weekdays,
+    #[default]
+    None,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Duration {
     years: u32,
@@ -24,6 +35,9 @@ pub struct Duration {
     hours: u32,
     minutes: u32,
     seconds: u32,
+    /// Special circumstances in Taskwarrior, such as "weekdays" that needs to be specially
+    /// formatted during serialization.
+    special: Special,
 }
 
 /// Constructors
@@ -75,6 +89,13 @@ impl Duration {
 /// Conversion Methods
 impl fmt::Display for Duration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Special Circumstances
+        //
+        // e.g. "weekdays"
+        if let Special::Weekdays = self.special {
+            return write!(f, "weekdays");
+        }
+
         let mut buffer = String::new();
         buffer.push('P');
         if self.years > 0 {
@@ -154,6 +175,7 @@ impl ops::Add for Duration {
             hours: self.hours + other.hours,
             minutes: self.minutes + other.minutes,
             seconds: self.seconds + other.seconds,
+            ..Default::default()
         }
     }
 }
@@ -568,10 +590,21 @@ fn parse_weekdays<'a>(input: &'a str) -> IResult<&'a str, Duration> {
         let (input, _) = space0(input)?;
         // Weekdays literal
         let (input, _) = alt((tag("weekdays"),))(input)?;
+
+        // If no ordinal, then special should be Special::Weekdays
+        let special: Special = if let None = digit {
+            Special::Weekdays
+        } else {
+            Special::None
+        };
+
+        let mut duration = Duration::days(digit.unwrap_or("1").parse::<u32>().unwrap());
+        duration.special = special;
+
         // Turn into a duration
         Ok((
             input,
-            Duration::days(digit.unwrap_or("1").parse::<u32>().unwrap()),
+            duration
         ))
     })(input)
 }
@@ -1291,12 +1324,17 @@ mod tests {
         assert_eq!(input, "");
         assert_eq!(duration, Duration::days(365));
     }
+    /// A special recurring duration that is equivalent to "P1D" but should serialize to "weekdays"
+    /// when no ordinal is present.
     #[test]
     fn weekdays() {
         let input = "weekdays";
         let (input, duration) = parse_weekdays(input).unwrap();
         assert_eq!(input, "");
         assert_eq!(duration, Duration::days(1));
+        assert_eq!(duration.to_string(), "weekdays".to_string());
+        // After any math, it should revert to the ISO format.
+        assert_eq!((duration.clone() + duration.clone()).to_string(), "P2D".to_string());
 
         let input = "5    weekdays";
         let (input, duration) = parse_weekdays(input).unwrap();
