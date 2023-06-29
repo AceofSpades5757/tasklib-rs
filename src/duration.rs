@@ -1,3 +1,8 @@
+//! FIXME: 1 month + 1 month should really be 2 months and not converted to 60 days.
+//!   * Should this really be fixed? `task calc` will calculate `1m + 1m` as 60 days.
+//! FIXME: 1 month should really not be internally converted to 30 days and should be recognized as
+//!   * Should this really be fixed? `task calc` will calculate `1m` as 30 days.
+//! 1 month immediately.
 use crate::UdaValue;
 use std::convert::TryFrom;
 use std::fmt;
@@ -36,8 +41,16 @@ pub struct Duration {
     minutes: u32,
     seconds: u32,
     /// Special circumstances in Taskwarrior, such as "weekdays" that needs to be specially
-    /// formatted during serialization.
+    /// formatted during serialization and cannot be represented using duration alone.
     special: Special,
+    /// If deserialized, this will be the source.
+    ///
+    /// Used to avoid changes in the serialized output.
+    ///
+    /// e.g. P1M is equivalent to P30D for a Taskwarrior duration, but this is not equivalent when
+    /// used in recurring tasks. `tasklib` will properly parse the P1M but it won't turn 30 days
+    /// into a month (to avoid data loss).
+    source: Option<String>,
 }
 
 /// Constructors
@@ -89,6 +102,12 @@ impl Duration {
 /// Conversion Methods
 impl fmt::Display for Duration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Source
+        //
+        // Return the same output if an input was originally given.
+        if let Some(ref source) = self.source {
+            return write!(f, "{}", *source);
+        }
         // Special Circumstances
         //
         // e.g. "weekdays"
@@ -202,7 +221,9 @@ impl FromStr for Duration {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (_, duration) = parse_duration(s).map_err(|e| format!("{e}"))?;
+        let source = s.to_string();
+        let (_, mut duration) = parse_duration(s).map_err(|e| format!("{e}"))?;
+        duration.source = Some(source);
         Ok(duration)
     }
 }
@@ -582,6 +603,8 @@ fn parse_years<'a>(input: &'a str) -> IResult<&'a str, Duration> {
 /// Every weekday, monday through friday
 fn parse_weekdays<'a>(input: &'a str) -> IResult<&'a str, Duration> {
     context("weekdays", |input: &'a str| {
+        let source = input.to_string();
+
         // Any amount of space
         let (input, _) = space0(input)?;
         // Optional ordinal
@@ -600,6 +623,7 @@ fn parse_weekdays<'a>(input: &'a str) -> IResult<&'a str, Duration> {
 
         let mut duration = Duration::days(digit.unwrap_or("1").parse::<u32>().unwrap());
         duration.special = special;
+        duration.source = Some(source);
 
         // Turn into a duration
         Ok((
@@ -2148,5 +2172,16 @@ mod tests {
         elapsed.smooth();
 
         assert_eq!(&elapsed.to_string(), "PT2H");
+    }
+    /// Verify that the deserialization matches the serialization, unless math is done.
+    #[test]
+    fn source() {
+        let input = "P1M";
+        let duration: Duration = input.into();
+        assert_eq!(duration, Duration::months(1));
+        assert_eq!(duration.to_string(), "P1M".to_string());
+        // After any math, it should remove the source.
+        // In this case, it smooths 1 month + 1 month to 60 days
+        assert_eq!((duration.clone() + duration.clone()).to_string(), "P60D".to_string());
     }
 }
