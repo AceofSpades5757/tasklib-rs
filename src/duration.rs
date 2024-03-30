@@ -230,11 +230,9 @@ impl From<Duration> for String {
 
 impl From<time::Duration> for Duration {
     fn from(duration: time::Duration) -> Self {
-        // FIXME: Smooth this
-        Duration {
-            seconds: duration.as_secs() as u32,
-            ..Default::default()
-        }
+        let mut dur =  Duration::seconds(duration.as_secs() as u32);
+        dur.smooth();
+        dur
     }
 }
 
