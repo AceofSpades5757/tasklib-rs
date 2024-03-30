@@ -92,7 +92,7 @@ where
         where
             E: de::Error,
         {
-            Ok(DateTime::<Utc>::from_utc(
+            Ok(DateTime::<Utc>::from_naive_utc_and_offset(
                 NaiveDateTime::parse_from_str(v, DATETIME_FORMAT)
                     .expect("string turned into datetime"),
                 Utc,
@@ -122,7 +122,7 @@ where
         where
             E: de::Error,
         {
-            Ok(Some(DateTime::<Utc>::from_utc(
+            Ok(Some(DateTime::<Utc>::from_naive_utc_and_offset(
                 NaiveDateTime::parse_from_str(v, DATETIME_FORMAT)
                     .expect("string turned into datetime"),
                 Utc,
@@ -652,7 +652,7 @@ mod udas {
         }
         pub fn as_uda_date(&self) -> Result<Self, Box<dyn Error>> {
             match self {
-                UdaValue::String(s) => Ok(Self::Date(DateTime::<Utc>::from_utc(
+                UdaValue::String(s) => Ok(Self::Date(DateTime::<Utc>::from_naive_utc_and_offset(
                     chrono::NaiveDateTime::parse_from_str(s, DATETIME_FORMAT)
                         .expect("string turned into datetime"),
                     Utc,
