@@ -929,7 +929,7 @@ fn parse_duration_iso_8601<'a>(input: &'a str) -> IResult<&'a str, Duration> {
             input,
             Duration::days(days.unwrap_or(0))
                 + Duration::days(years.unwrap_or(0) * 365)
-                + Duration::days(months.unwrap_or(0) * 30)
+                + Duration::months(months.unwrap_or(0))
                 + Duration::hours(hours.unwrap_or(0))
                 + Duration::minutes(minutes.unwrap_or(0))
                 + Duration::seconds(seconds.unwrap_or(0)),
