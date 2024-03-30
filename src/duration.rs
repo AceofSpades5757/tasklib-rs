@@ -172,10 +172,8 @@ impl Duration {
         self.days += self.hours / 24;
         self.days %= 24;
 
-        //self.months = self.months + self.days / 30;
-        //self.months = self.days % 30;
-
         self.years += self.months / 12;
+        self.months %= 12;
     }
 }
 
