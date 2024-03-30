@@ -1350,7 +1350,10 @@ mod tests {
         assert_eq!(duration, Duration::days(1));
         assert_eq!(duration.to_string(), "weekdays".to_string());
         // After any math, it should revert to the ISO format.
-        assert_eq!((duration.clone() + duration.clone()).to_string(), "P2D".to_string());
+        assert_eq!(
+            (duration.clone() + duration.clone()).to_string(),
+            "P2D".to_string()
+        );
 
         let input = "5    weekdays";
         let (input, duration) = parse_weekdays(input).unwrap();
@@ -2173,7 +2176,25 @@ mod tests {
         assert_eq!(duration, Duration::months(1));
         assert_eq!(duration.to_string(), "P1M".to_string());
         // After any math, it should remove the source.
-        // In this case, it smooths 1 month + 1 month to 60 days
-        assert_eq!((duration.clone() + duration.clone()).to_string(), "P60D".to_string());
+        assert_eq!(
+            (duration.clone() + duration.clone()).to_string(),
+            "P2M".to_string()
+        );
+
+        let input_1 = "P1M";
+        let duration_1: Duration = input_1.into();
+        let input_2 = "P30D";
+        let duration_2: Duration = input_2.into();
+        assert_eq!(duration_1, Duration::months(1));
+        assert_eq!(duration_1, Duration::days(30));
+        assert_eq!(duration_1.to_string(), "P1M".to_string());
+        assert_eq!(duration_2, Duration::months(1));
+        assert_eq!(duration_2, Duration::days(30));
+        assert_eq!(duration_2.to_string(), "P30D".to_string());
+        // After any math, it should remove the source.
+        assert_eq!(
+            (duration_1.clone() + duration_2.clone()).to_string(),
+            "P1M30D".to_string()
+        );
     }
 }
