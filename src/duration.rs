@@ -230,7 +230,7 @@ impl From<Duration> for String {
 
 impl From<time::Duration> for Duration {
     fn from(duration: time::Duration) -> Self {
-        let mut dur =  Duration::seconds(duration.as_secs() as u32);
+        let mut dur = Duration::seconds(duration.as_secs() as u32);
         dur.smooth();
         dur
     }
@@ -618,10 +618,7 @@ fn parse_weekdays<'a>(input: &'a str) -> IResult<&'a str, Duration> {
         duration.source = Some(source);
 
         // Turn into a duration
-        Ok((
-            input,
-            duration
-        ))
+        Ok((input, duration))
     })(input)
 }
 
