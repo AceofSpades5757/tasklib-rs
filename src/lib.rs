@@ -1756,22 +1756,19 @@ mod tests {
     #[test]
     fn builder() {
         use chrono::ParseError;
-        use chrono::TimeZone;
 
-        /// str -> DateTime<Utc>
-        ///
         /// e.g."20220131T083000Z" -> DateTime<Utc>
         fn tw_str_to_dt(s: &str) -> Result<DateTime<Utc>, ParseError> {
-            Utc.datetime_from_str(s, "%Y%m%dT%H%M%SZ")
+            NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%SZ").map(|dt| dt.and_utc())
         }
 
         let task = TaskBuilder::new()
             .description("Task to do.")
-            .end(tw_str_to_dt("20220131T083000Z").unwrap())
-            .entry(tw_str_to_dt("20220131T083000Z").unwrap())
-            .modified(tw_str_to_dt("20220131T083000Z").unwrap())
+            .end(tw_str_to_dt("20220131T083000Z").unwrap().into())
+            .entry(tw_str_to_dt("20220131T083000Z").unwrap().into())
+            .modified(tw_str_to_dt("20220131T083000Z").unwrap().into())
             .project("Daily")
-            .start(tw_str_to_dt("20220131T083000Z").unwrap())
+            .start(tw_str_to_dt("20220131T083000Z").unwrap().into())
             .status(Status::Pending)
             .uuid("d67fce70-c0b6-43c5-affc-a21e64567d40")
             .tags(vec!["WORK"])
