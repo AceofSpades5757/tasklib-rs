@@ -1,8 +1,5 @@
 //! FIXME: 1 month + 1 month should really be 2 months and not converted to 60 days.
 //!   * Should this really be fixed? `task calc` will calculate `1m + 1m` as 60 days.
-//! FIXME: 1 month should really not be internally converted to 30 days and should be recognized as
-//!   * Should this really be fixed? `task calc` will calculate `1m` as 30 days.
-//! 1 month immediately.
 use crate::UdaValue;
 use std::convert::TryFrom;
 use std::fmt;
@@ -162,8 +159,7 @@ impl Duration {
 impl Duration {
     /// Smooth values
     ///
-    /// NOT IMPLEMENTED: Assumes 30 days in a month
-    /// For the sake of accuracy, this was not implemented.
+    /// Will not convert months and days as months may have a different number of days.
     ///
     /// e.g. PT7200S -> PT2H
     pub fn smooth(&mut self) {
