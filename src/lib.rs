@@ -1603,7 +1603,8 @@ mod tests {
 
         let duration = time::Duration::from_secs((40 * 60) + 50);
         let tasklib_duration: Duration = duration.into();
-        assert_eq!(tasklib_duration.to_string(), "PT2450S");
+        // assert_eq!(tasklib_duration.to_string(), "PT2450S");
+        assert_eq!(tasklib_duration.to_string(), "PT40M50S"); // smoothing was added for addition
         assert_eq!(
             tasklib_duration,
             Duration::minutes(40) + Duration::seconds(50)
