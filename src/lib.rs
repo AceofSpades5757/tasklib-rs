@@ -28,10 +28,10 @@
 //!
 //! Example getting task from stdin and writing to stdout.
 //!
-//! ```rust should_panic
+//! ```rust should_panic(expected = "no standard input provided")
 //! use tasklib::prelude::*;
 //!
-//! // Getting a Task from stdin
+//! // Getting a Task from stdin (example fails because it doesn't have actual JSON input)
 //! let task: Task = Task::from_stdin().expect("read task from stdin as JSON");
 //! // Writing a Task to stdout, as JSON
 //! task.to_stdout().expect("write task to stdout as JSON");
@@ -52,7 +52,7 @@
 //! args.command(); // Command::Add
 //! args.rc_file(); // PathBuf::from("/home/.taskrc")
 //! args.data_location(); // PathBuf::from("/home/.task")
-//! args.task_version(); // "2.6.3"
+//! args.task_version(); // "3.4.2"
 //! ```
 
 pub use chrono;

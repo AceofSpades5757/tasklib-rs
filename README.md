@@ -12,7 +12,7 @@ Add this crate to your `Cargo.toml` file, or use `cargo add tasklib`.
 
 ```toml
 [dependencies]
-tasklib = "0.3"
+tasklib = "0.4"
 ```
 
 Here is a minimal example.
