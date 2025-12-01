@@ -297,6 +297,9 @@ impl Task {
     pub fn tags(&self) -> &[String] {
         &self.tags
     }
+    pub fn recur(&self) -> Option<&Duration> {
+        self.recur.as_ref()
+    }
     pub fn urgency(&self) -> &Option<f64> {
         &self.urgency
     }
@@ -348,6 +351,9 @@ impl Task {
     }
     pub fn tags_mut(&mut self) -> &mut Vec<String> {
         &mut self.tags
+    }
+    pub fn recur_mut(&mut self) -> &mut Option<Duration> {
+        &mut self.recur
     }
     pub fn urgency_mut(&mut self) -> &mut Option<f64> {
         &mut self.urgency
