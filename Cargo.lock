@@ -216,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "tasklib"
-version = "0.3.1"
+version = "0.3.3"
 dependencies = [
  "chrono",
  "nom",

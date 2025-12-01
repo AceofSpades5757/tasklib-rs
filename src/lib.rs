@@ -55,6 +55,12 @@
 //! args.task_version(); // "2.6.3"
 //! ```
 
+pub use chrono;
+pub use nom;
+pub use serde;
+pub use serde_json;
+pub use uuid;
+
 use std::collections::HashMap;
 use std::fmt;
 use std::io::{self, Read, Write};
@@ -62,7 +68,7 @@ use std::str::FromStr;
 use std::string::ToString;
 use uuid::Uuid;
 
-use chrono::{self, offset::Utc, DateTime, NaiveDateTime};
+use chrono::{offset::Utc, DateTime, NaiveDateTime};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use duration::Duration;
@@ -267,6 +273,15 @@ impl Task {
     pub fn end(&self) -> Option<&DateTime<Utc>> {
         self.end.as_ref()
     }
+    pub fn due(&self) -> Option<&DateTime<Utc>> {
+        self.due.as_ref()
+    }
+    pub fn wait(&self) -> Option<&DateTime<Utc>> {
+        self.wait.as_ref()
+    }
+    pub fn until(&self) -> Option<&DateTime<Utc>> {
+        self.until.as_ref()
+    }
     pub fn entry(&self) -> &DateTime<Utc> {
         &self.entry
     }
@@ -281,6 +296,9 @@ impl Task {
     }
     pub fn tags(&self) -> &[String] {
         &self.tags
+    }
+    pub fn recur(&self) -> Option<&Duration> {
+        self.recur.as_ref()
     }
     pub fn urgency(&self) -> &Option<f64> {
         &self.urgency
@@ -310,6 +328,15 @@ impl Task {
     pub fn end_mut(&mut self) -> &mut Option<DateTime<Utc>> {
         &mut self.end
     }
+    pub fn due_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.due
+    }
+    pub fn wait_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.wait
+    }
+    pub fn until_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.until
+    }
     pub fn entry_mut(&mut self) -> &mut DateTime<Utc> {
         &mut self.entry
     }
@@ -324,6 +351,9 @@ impl Task {
     }
     pub fn tags_mut(&mut self) -> &mut Vec<String> {
         &mut self.tags
+    }
+    pub fn recur_mut(&mut self) -> &mut Option<Duration> {
+        &mut self.recur
     }
     pub fn urgency_mut(&mut self) -> &mut Option<f64> {
         &mut self.urgency
@@ -524,6 +554,14 @@ impl TaskBuilder {
         self.project = Some(project.to_string());
         self
     }
+    pub fn due(mut self, due: DateTime<Utc>) -> Self {
+        self.due = Some(due);
+        self
+    }
+    pub fn until(mut self, until: DateTime<Utc>) -> Self {
+        self.until = Some(until);
+        self
+    }
     pub fn wait(mut self, wait: DateTime<Utc>) -> Self {
         self.wait = Some(wait);
         self
@@ -630,7 +668,7 @@ mod udas {
 
     /// Converters
     impl UdaValue {
-        pub fn as_uda_string(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_string(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(_) => Ok(self.clone()),
                 UdaValue::Numeric(n) => Ok(Self::String(n.to_string())),
@@ -638,7 +676,7 @@ mod udas {
                 UdaValue::Duration(d) => Ok(Self::String(d.to_string())),
             }
         }
-        pub fn as_uda_numeric(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_numeric(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(s) => Ok(Self::Numeric(s.parse::<f64>()?)),
                 UdaValue::Numeric(_) => Ok(self.clone()),
@@ -650,7 +688,7 @@ mod udas {
                 ))),
             }
         }
-        pub fn as_uda_date(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_date(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(s) => Ok(Self::Date(DateTime::<Utc>::from_naive_utc_and_offset(
                     chrono::NaiveDateTime::parse_from_str(s, DATETIME_FORMAT)
@@ -666,7 +704,7 @@ mod udas {
                 ))),
             }
         }
-        pub fn as_uda_duration(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_duration(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(s) => Ok(Self::Duration(s.parse::<Duration>()?)),
                 UdaValue::Numeric(_) => Err(Box::new(ParseError(
