@@ -388,11 +388,11 @@ impl Task {
 impl Task {
     /// Convert Task to JSON object.
     pub fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap()
+        serde_json::to_value(self).expect("task turned into json value")
     }
     /// Convert Task to JSON string.
     pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
+        serde_json::to_string(self).expect("task turned into json value")
     }
     /// Write JSON representation of Task to handle.
     pub fn to_writer<W: Write>(&self, writer: &mut W) -> Result<(), io::Error> {
@@ -607,13 +607,13 @@ impl TaskBuilder {
     pub fn build(self) -> Task {
         Task {
             id: self.id,
-            uuid: self.uuid.unwrap(),
+            uuid: self.uuid.expect("uuid is required"),
             description: self.description.unwrap_or("".to_string()),
             entry: self.entry.unwrap_or(Utc::now()),
             start: self.start,
             end: self.end,
-            modified: self.modified.unwrap(),
-            status: self.status.unwrap(),
+            modified: self.modified.expect("modified is required"),
+            status: self.status.expect("status is required"),
             tags: self.tags.unwrap_or(vec![]),
             annotations: self.annotations.unwrap_or(vec![]),
             project: self.project.unwrap_or("".to_string()),
@@ -1210,13 +1210,13 @@ mod cli {
 
     impl From<Vec<String>> for CliArguments {
         fn from(vec: Vec<String>) -> Self {
-            Self::from_vec(vec).unwrap()
+            Self::from_vec(vec).expect("cli arguments from vec")
         }
     }
 
     impl From<env::Args> for CliArguments {
         fn from(args: env::Args) -> Self {
-            Self::from_vec(args.collect()).unwrap()
+            Self::from_vec(args.collect()).expect("cli arguments from env args")
         }
     }
 
