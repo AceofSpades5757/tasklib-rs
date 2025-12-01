@@ -668,7 +668,7 @@ mod udas {
 
     /// Converters
     impl UdaValue {
-        pub fn as_uda_string(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_string(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(_) => Ok(self.clone()),
                 UdaValue::Numeric(n) => Ok(Self::String(n.to_string())),
@@ -676,7 +676,7 @@ mod udas {
                 UdaValue::Duration(d) => Ok(Self::String(d.to_string())),
             }
         }
-        pub fn as_uda_numeric(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_numeric(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(s) => Ok(Self::Numeric(s.parse::<f64>()?)),
                 UdaValue::Numeric(_) => Ok(self.clone()),
@@ -688,7 +688,7 @@ mod udas {
                 ))),
             }
         }
-        pub fn as_uda_date(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_date(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(s) => Ok(Self::Date(DateTime::<Utc>::from_naive_utc_and_offset(
                     chrono::NaiveDateTime::parse_from_str(s, DATETIME_FORMAT)
@@ -704,7 +704,7 @@ mod udas {
                 ))),
             }
         }
-        pub fn as_uda_duration(&self) -> Result<Self, Box<dyn Error>> {
+        pub fn as_uda_duration(&self) -> Result<Self, Box<dyn Error + Send + Sync + 'static>> {
             match self {
                 UdaValue::String(s) => Ok(Self::Duration(s.parse::<Duration>()?)),
                 UdaValue::Numeric(_) => Err(Box::new(ParseError(
