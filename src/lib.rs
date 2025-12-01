@@ -443,6 +443,7 @@ impl From<&str> for Task {
     }
 }
 
+/// A note to an task.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Annotation {
     #[serde(
@@ -453,7 +454,7 @@ pub struct Annotation {
     description: String,
 }
 
-// #[derive(Debug, Serialize)]
+/// The status of a task.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Status {
     #[serde(rename = "completed")]
@@ -466,6 +467,7 @@ pub enum Status {
     Deleted,
 }
 
+/// A builder for creating Task instances.
 #[derive(Debug, Default)]
 pub struct TaskBuilder {
     id: Option<usize>,
