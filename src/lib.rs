@@ -1038,6 +1038,7 @@ mod udas {
         }
     }
 
+    #[allow(dead_code)]
     #[derive(Debug, Clone)]
     enum Type {
         /// May be provided a list of acceptable values, using the `uda.my_uda.values` key, which
