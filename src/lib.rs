@@ -273,6 +273,15 @@ impl Task {
     pub fn end(&self) -> Option<&DateTime<Utc>> {
         self.end.as_ref()
     }
+    pub fn due(&self) -> Option<&DateTime<Utc>> {
+        self.due.as_ref()
+    }
+    pub fn wait(&self) -> Option<&DateTime<Utc>> {
+        self.wait.as_ref()
+    }
+    pub fn until(&self) -> Option<&DateTime<Utc>> {
+        self.until.as_ref()
+    }
     pub fn entry(&self) -> &DateTime<Utc> {
         &self.entry
     }
@@ -315,6 +324,15 @@ impl Task {
     }
     pub fn end_mut(&mut self) -> &mut Option<DateTime<Utc>> {
         &mut self.end
+    }
+    pub fn due_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.due
+    }
+    pub fn wait_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.wait
+    }
+    pub fn until_mut(&mut self) -> &mut Option<DateTime<Utc>> {
+        &mut self.until
     }
     pub fn entry_mut(&mut self) -> &mut DateTime<Utc> {
         &mut self.entry
@@ -528,6 +546,14 @@ impl TaskBuilder {
     }
     pub fn project<T: ToString>(mut self, project: T) -> Self {
         self.project = Some(project.to_string());
+        self
+    }
+    pub fn due(mut self, due: DateTime<Utc>) -> Self {
+        self.due = Some(due);
+        self
+    }
+    pub fn until(mut self, until: DateTime<Utc>) -> Self {
+        self.until = Some(until);
         self
     }
     pub fn wait(mut self, wait: DateTime<Utc>) -> Self {
