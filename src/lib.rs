@@ -55,6 +55,12 @@
 //! args.task_version(); // "2.6.3"
 //! ```
 
+pub use chrono;
+pub use nom;
+pub use serde;
+pub use serde_json;
+pub use uuid;
+
 use std::collections::HashMap;
 use std::fmt;
 use std::io::{self, Read, Write};
@@ -62,7 +68,7 @@ use std::str::FromStr;
 use std::string::ToString;
 use uuid::Uuid;
 
-use chrono::{self, offset::Utc, DateTime, NaiveDateTime};
+use chrono::{offset::Utc, DateTime, NaiveDateTime};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use duration::Duration;
