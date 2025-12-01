@@ -54,6 +54,13 @@
 //! args.data_location(); // PathBuf::from("/home/.task")
 //! args.task_version(); // "3.4.2"
 //! ```
+//!
+//! Using the same dependencies as `tasklib`, such as `chrono`:
+//! ```rust
+//! use tasklib::prelude::*;
+//! use tasklib::chrono::offset::Utc;
+//! use tasklib::chrono::DateTime;
+//! ```
 
 pub use chrono;
 pub use nom;
