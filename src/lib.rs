@@ -478,7 +478,7 @@ pub enum Status {
 
 /// A builder for creating Task instances.
 ///
-/// **Warning:** This API may be inadequate for some use cases, such as creating taskks not already found in a Taskwarrior database, as some fields are required by Taskwarrior for existing tasks (e.g. `uuid`).
+/// **Warning:** This API may be inadequate for some use cases, such as creating tasks not already found in a Taskwarrior database, as some fields are required by Taskwarrior for existing tasks (e.g. `uuid`).
 ///
 /// Example:
 /// ```rust
