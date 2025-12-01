@@ -85,7 +85,7 @@ mod duration;
 
 const DATETIME_FORMAT: &str = "%Y%m%dT%H%M%SZ";
 
-/// Taskwarrior str to DateTime<Utc> deserializer
+/// Taskwarrior `str` to `DateTime<Utc>` deserializer
 ///
 /// str -> DateTime<Utc>
 fn tw_str_to_dt_de<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
@@ -115,7 +115,7 @@ where
     deserializer.deserialize_any(DateTimeStringVisitor)
 }
 
-/// Taskwarrior str to Option<DateTime<Utc>> deserializer
+/// Taskwarrior `str` to `Option<DateTime<Utc>>` deserializer
 ///
 /// str -> Option<DateTime<Utc>>
 fn tw_str_to_dt_opt_de<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
@@ -145,14 +145,14 @@ where
     deserializer.deserialize_any(DateTimeStringVisitor)
 }
 
-/// Taskwarrior str to DateTime<Utc> serializer
+/// Taskwarrior `str` to `DateTime<Utc>` serializer
 ///
 /// DateTime<Utc> -> String
 fn tw_dt_to_str_se<S: Serializer>(dt: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error> {
     s.serialize_str(&dt.format(DATETIME_FORMAT).to_string())
 }
 
-/// Taskwarrior str to Option<DateTime<Utc>> serializer
+/// Taskwarrior `str` to `Option<DateTime<Utc>>` serializer
 ///
 /// Option<DateTime<Utc>> -> String
 fn tw_dt_to_str_opt_se<S: Serializer>(dt: &Option<DateTime<Utc>>, s: S) -> Result<S::Ok, S::Error> {
@@ -162,6 +162,8 @@ fn tw_dt_to_str_opt_se<S: Serializer>(dt: &Option<DateTime<Utc>>, s: S) -> Resul
     }
 }
 
+/// A Taskwarrior task.
+///
 /// See all columns using `task columns` and `task _columns`.
 ///
 /// UDAs will only deserialize to a string or numeric type. Durations and dates will be parsed to a string.
@@ -450,7 +452,7 @@ impl From<&str> for Task {
     }
 }
 
-/// A note to an task.
+/// A note to a task.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Annotation {
     #[serde(
