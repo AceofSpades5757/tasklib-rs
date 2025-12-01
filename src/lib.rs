@@ -828,21 +828,21 @@ mod udas {
         }
     }
 
-    /// Implement tasklib::Duration into UdaValue
+    /// Implement `tasklib::Duration` into `UdaValue`
     impl From<Duration> for UdaValue {
         fn from(d: Duration) -> Self {
             UdaValue::Duration(d)
         }
     }
 
-    /// Implement chrono::DateTime into UdaValue
+    /// Implement `chrono::DateTime` into `UdaValue`
     impl From<DateTime<Utc>> for UdaValue {
         fn from(d: DateTime<Utc>) -> Self {
             UdaValue::Date(d)
         }
     }
 
-    /// Implement == against string
+    /// Implement equality (`==`) against `String`
     impl PartialEq<String> for UdaValue {
         fn eq(&self, other: &String) -> bool {
             match self {
@@ -852,7 +852,7 @@ mod udas {
         }
     }
 
-    /// Implement == against &str
+    /// Implement equality (`==`) against `&str`
     impl PartialEq<str> for UdaValue {
         fn eq(&self, other: &str) -> bool {
             match self {
@@ -862,7 +862,7 @@ mod udas {
         }
     }
 
-    /// Implement == against f64
+    /// Implement equality (`==`) against `f64`
     impl PartialEq<f64> for UdaValue {
         fn eq(&self, other: &f64) -> bool {
             match self {
@@ -872,7 +872,7 @@ mod udas {
         }
     }
 
-    /// Implement == against i64
+    /// Implement equality (`==`) against `i64`
     impl PartialEq<i64> for UdaValue {
         fn eq(&self, other: &i64) -> bool {
             match self {
@@ -882,7 +882,7 @@ mod udas {
         }
     }
 
-    /// Implement == against DateTime<Utc>
+    /// Implement equality (`==`) against `DateTime<Utc>`
     impl PartialEq<DateTime<Utc>> for UdaValue {
         fn eq(&self, other: &DateTime<Utc>) -> bool {
             match self {
@@ -892,7 +892,7 @@ mod udas {
         }
     }
 
-    /// Implement == against Duration
+    /// Implement equality (`==`) against `Duration`
     impl PartialEq<Duration> for UdaValue {
         fn eq(&self, other: &Duration) -> bool {
             match self {
@@ -960,13 +960,6 @@ mod udas {
             coefficient: Option<f32>,
         },
     }
-
-    /// Manually implement Deserialize for Uda
-    ///
-    /// "elapsed": "2.0",   -> Uda::String { name: String::from("elapsed"), value: String::from("2.0"), .. }
-    /// "elapsed": 2.0,     -> Uda::Numeric { name: String::from("elapsed"), value: 2.0, .. }
-    /// "elapsed": "20220131T083000Z", -> Uda::Date { name: String::from("elapsed"), value: Utc.datetime_from_str("20220131T083000Z", "%Y%m%dT%H%M%SZ")
-    /// "elapsed": "PT2H",  -> Uda::Duration { name: String::from("elapsed"), value: Duration::hours(2), .. }
 
     /// Allow Uda::String{ .. } to be compared to a string
     ///
