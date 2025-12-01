@@ -479,6 +479,26 @@ pub enum Status {
 /// A builder for creating Task instances.
 ///
 /// **Warning:** This API may be inadequate for some use cases, such as creating taskks not already found in a Taskwarrior database, as some fields are required by Taskwarrior for existing tasks (e.g. `uuid`).
+///
+/// Example:
+/// ```rust
+/// use tasklib::prelude::*;
+/// use tasklib::chrono::offset::Utc;
+/// use tasklib::chrono::DateTime;
+///
+/// let task: Task = TaskBuilder::new()
+///     .description("Task to do.")
+///     .entry(DateTime::parse_from_rfc3339("2022-01-31T08:30:00Z").unwrap().with_timezone(&Utc))
+///     .modified(DateTime::parse_from_rfc3339("2022-01-31T08:30:00Z").unwrap().with_timezone(&Utc))
+///     .project("Daily")
+///     .start(DateTime::parse_from_rfc3339("2022-01-31T08:30:00Z").unwrap().with_timezone(&Utc))
+///     .status(Status::Pending)
+///     .uuid("d67fce70-c0b6-43c5-affc-a21e64567d40")
+///     .tags(vec!["WORK"])
+///     .urgency(9.91234)
+///     .parent("d67fce70-c0b6-43c5-affc-a21e64567d40")
+///     .build();
+/// ```
 #[derive(Debug, Default)]
 pub struct TaskBuilder {
     id: Option<usize>,
